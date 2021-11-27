@@ -86,12 +86,26 @@ Run `sarif <COMMAND> --help` for command-specific help.
         + "(or for diff, an increase in issues at that level).",
     )
 
-    for cmd in ["blame", "csv", "summary", "html", "word"]:
+    for cmd in ["blame", "csv", "html", "summary", "word"]:
         subparser[cmd].add_argument(
             "--output", "-o", type=str, help="Output file or directory"
         )
     for cmd in ["diff", "ls", "trend", "usage"]:
         subparser[cmd].add_argument("--output", "-o", type=str, help="Output file")
+
+    for cmd in ["csv", "diff", "summary", "html", "trend", "word"]:
+        subparser[cmd].add_argument(
+            "--blame-filter-include",
+            "-i",
+            type=str,
+            help="File containing a newline-separated filter list of author-mail to include",
+        )
+        subparser[cmd].add_argument(
+            "--blame-filter-exclude",
+            "-x",
+            type=str,
+            help="File containing a newline-separated filter list of author-mail to exclude",
+        )
 
     # Command-specific options
     subparser["blame"].add_argument(
@@ -187,6 +201,37 @@ def _check(input_files: sarif_file.SarifFileSet, check_level):
     return ret
 
 
+def _load_blame_filter_file(file_path):
+    regexes = []
+    substrings = []
+    with open(file_path) as file_in:
+        for l in file_in.readlines():
+            lstrip = l.strip()
+            if lstrip:
+                if lstrip.startswith("/") and lstrip.endswith("/") and len(lstrip) > 2:
+                    regexes.append(lstrip[1 : len(lstrip) - 1])
+                else:
+                    substrings.append(lstrip)
+    return (substrings, regexes)
+
+
+def _init_blame_filtering(input_files, args):
+    if args.blame_filter_include or args.blame_filter_exclude:
+        (include_substrings, include_regexes) = (
+            _load_blame_filter_file(args.blame_filter_include)
+            if args.blame_filter_include
+            else ([], [])
+        )
+        (exclude_substrings, exclude_regexes) = (
+            _load_blame_filter_file(args.blame_filter_exclude)
+            if args.blame_filter_exclude
+            else ([], [])
+        )
+        input_files.init_blame_filter(
+            include_substrings, include_regexes, exclude_substrings, exclude_regexes
+        )
+
+
 def _init_path_prefix_stripping(input_files, args, strip_by_default):
     if strip_by_default:
         autotrim = not args.no_autotrim
@@ -242,6 +287,9 @@ def _prepare_output(
     return (os.getcwd(), True)
 
 
+####################################### Command handlers #######################################
+
+
 def _blame(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".sarif")
@@ -251,9 +299,29 @@ def _blame(args):
     return _check(input_files, args.check)
 
 
+def _csv(args):
+    input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
+    _init_path_prefix_stripping(input_files, args, strip_by_default=False)
+    _init_blame_filtering(input_files, args)
+    (output, multiple_file_output) = _prepare_output(input_files, args.output, ".csv")
+    csv_op.generate_csv(input_files, output, multiple_file_output)
+    return _check(input_files, args.check)
+
+
+def _diff(args):
+    original_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
+    new_sarif = loader.load_sarif_files(args.new_file_or_dir[0])
+    _init_blame_filtering(original_sarif, args)
+    _init_blame_filtering(new_sarif, args)
+    return diff_op.print_diff(original_sarif, new_sarif, args.output, args.check)
+
+
 def _html(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
+    _init_blame_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".html")
     html_op.generate_html(input_files, args.image, output, multiple_file_output)
     return _check(input_files, args.check)
@@ -267,22 +335,9 @@ def _ls(args):
     return 0
 
 
-def _csv(args):
-    input_files = loader.load_sarif_files(*args.files_or_dirs)
-    _init_path_prefix_stripping(input_files, args, strip_by_default=False)
-    (output, multiple_file_output) = _prepare_output(input_files, args.output, ".csv")
-    csv_op.generate_csv(input_files, output, multiple_file_output)
-    return _check(input_files, args.check)
-
-
-def _diff(args):
-    original_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
-    new_sarif = loader.load_sarif_files(args.new_file_or_dir[0])
-    return diff_op.print_diff(original_sarif, new_sarif, args.output, args.check)
-
-
 def _summary(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    _init_blame_filtering(input_files, args)
     (output, multiple_file_output) = (None, False)
     if args.output:
         (output, multiple_file_output) = _prepare_output(
@@ -294,6 +349,8 @@ def _summary(args):
 
 def _trend(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
+    _init_blame_filtering(input_files, args)
     if args.output:
         _ensure_dir(os.path.dirname(args.output))
         output = args.output
@@ -318,7 +375,9 @@ def _usage(args):
 
 def _word(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
+    _init_blame_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".docx")
     word_op.generate_word_docs_from_sarif_inputs(
         input_files, args.image, output, multiple_file_output

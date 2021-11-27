@@ -5,7 +5,8 @@ files, along with associated functions and constants.
 
 import os
 import re
-from typing import Iterator
+import sys
+from typing import Iterator, Tuple
 
 SARIF_SEVERITIES = ["error", "warning", "note"]
 
@@ -26,6 +27,40 @@ def has_sarif_file_extension(filename):
     """
     filename_upper = filename.upper().strip()
     return any(filename_upper.endswith(x) for x in [".SARIF", ".SARIF.JSON"])
+
+
+def _read_result_location(result) -> Tuple[str, str]:
+    """
+    Extract the file path and line number (latter as a string) from the Result.
+    Tools store this in different ways, so this function tries a few different JSON locations.
+    """
+    file_path = None
+    line_number = None
+    locations = result.get("locations", [])
+    if locations:
+        location = locations[0]
+        physical_location = location.get("physicalLocation", {})
+        # SpotBugs has some errors with no line number so deal with them by just leaving it at 1
+        line_number = physical_location.get("region", {}).get("startLine", None)
+        # For file name, first try the location written by DevSkim
+        file_path = (
+            location.get("physicalLocation", {})
+            .get("address", {})
+            .get("fullyQualifiedName", None)
+        )
+        if not file_path:
+            # Next try the physical location written by MobSF and by SpotBugs (for some errors)
+            file_path = (
+                location.get("physicalLocation", {})
+                .get("artifactLocation", {})
+                .get("uri", None)
+            )
+        if not file_path:
+            logical_locations = location.get("logicalLocations", None)
+            if logical_locations:
+                # Finally, try the logical location written by SpotBugs for some errors
+                file_path = logical_locations[0].get("fullyQualifiedName", None)
+    return (file_path, line_number)
 
 
 def _group_records_by_severity(records) -> dict[str, list[dict]]:
@@ -51,6 +86,84 @@ def _count_records_by_issue_code(records, severity) -> list[tuple]:
     return sorted(code_to_count.items(), key=lambda x: x[1], reverse=True)
 
 
+class _Filter:
+    def __init__(self):
+        self.include_substrings = None
+        self.include_regexes = None
+        self.exclude_substrings = None
+        self.exclude_regexes = None
+
+    def init_blame_filter(
+        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+    ):
+        self.include_substrings = (
+            [s.upper().strip() for s in include_substrings]
+            if include_substrings
+            else None
+        )
+        self.include_regexes = include_regexes[:] if include_regexes else None
+        self.exclude_substrings = (
+            [s.upper().strip() for s in exclude_substrings]
+            if exclude_substrings
+            else None
+        )
+        self.exclude_regexes = exclude_regexes[:] if exclude_regexes else None
+        self.filtered_out_result_count = 0
+        self.missing_blame_count = 0
+
+    def filter_results(self, results):
+        if (
+            self.include_substrings
+            or self.include_regexes
+            or self.exclude_substrings
+            or self.exclude_regexes
+        ):
+            ret = []
+            for result in results:
+                blame_info = result.get("properties", {}).get("blame", None)
+                if blame_info:
+                    author_mail = blame_info.get("author-mail", None) or blame_info.get(
+                        "committer-mail", None
+                    )
+                    if author_mail:
+                        author_mail_upper = author_mail.upper().strip()
+                        # first check inclusion
+                        include = True
+                        if self.include_substrings and not any(
+                            s in author_mail_upper for s in self.include_substrings
+                        ):
+                            include = False
+                        elif self.include_regexes and not any(
+                            re.search(r, author_mail, re.IGNORECASE)
+                            for r in self.include_regexes
+                        ):
+                            include = False
+                        elif self.exclude_substrings and any(
+                            s in author_mail_upper for s in self.exclude_substrings
+                        ):
+                            include = False
+                        elif self.exclude_regexes and any(
+                            re.search(r, author_mail, re.IGNORECASE)
+                            for r in self.exclude_regexes
+                        ):
+                            include = False
+                        if include:
+                            ret.append(result)
+                        else:
+                            self.filtered_out_result_count += 1
+                    else:
+                        self.missing_blame_count += 1
+                        # Result did not contain complete blame information, so don't filter it out.
+                        ret.append(result)
+                else:
+                    self.missing_blame_count += 1
+                    # Result did not contain blame information, so don't filter it out.
+                    ret.append(result)
+            return ret
+        else:
+            return results
+
+
 class SarifRun:
     """
     Class to hold a run object from a SARIF file (an entry in the top-level "runs" list
@@ -64,6 +177,8 @@ class SarifRun:
         self.run_data = run_data
         self._path_prefixes_upper = None
         self._cached_records = None
+        self._filter = _Filter()
+        self._default_line_number = None
 
     def init_path_prefix_stripping(self, autotrim=False, path_prefixes=None):
         """
@@ -104,6 +219,24 @@ class SarifRun:
         # Clear the untrimmed records cached by get_records() above.
         self._cached_records = None
 
+    def init_default_line_number_1(self):
+        """
+        Some SARIF records lack a line number.  If this method is called, the default line number
+        "1" is substituted in that case in the records returned by get_records().  Otherwise,
+        None is returned.
+        """
+        self._default_line_number = "1"
+        self._cached_records = None
+
+    def init_blame_filter(
+        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+    ):
+        self._filter.init_blame_filter(
+            include_substrings, include_regexes, exclude_substrings, exclude_regexes
+        )
+        # Clear the unfiltered records cached by get_records() above.
+        self._cached_records = None
+
     def get_tool_name(self) -> str:
         """
         Get the tool name from this run.
@@ -116,7 +249,7 @@ class SarifRun:
         SARIF standard section 3.27.
         https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638
         """
-        return self.run_data["results"]
+        return self._filter.filter_results(self.run_data["results"])
 
     def get_records(self) -> list[dict]:
         """
@@ -142,37 +275,12 @@ class SarifRun:
         https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638
         """
         error_id = result["ruleId"]
-        locations = result.get("locations", [])
-        error_line = "1"
-        file_path = None
         tool_name = self.get_tool_name()
-        if locations:
-            location = locations[0]
-            physical_location = location.get("physicalLocation", {})
-            # SpotBugs has some errors with no line number so deal with them by just leaving it at 1
-            error_line = physical_location.get("region", {}).get(
-                "startLine", error_line
-            )
-            # For file name, first try the location written by DevSkim
-            file_path = (
-                location.get("physicalLocation", {})
-                .get("address", {})
-                .get("fullyQualifiedName", None)
-            )
-            if not file_path:
-                # Next try the physical location written by MobSF and by SpotBugs (for some errors)
-                file_path = (
-                    location.get("physicalLocation", {})
-                    .get("artifactLocation", {})
-                    .get("uri", None)
-                )
-            if not file_path:
-                logical_locations = location.get("logicalLocations", None)
-                if logical_locations:
-                    # Finally, try the logical location written by SpotBugs for some errors
-                    file_path = logical_locations[0].get("fullyQualifiedName", None)
+        (file_path, line_number) = _read_result_location(result)
         if not file_path:
             raise ValueError(f"No location in {error_id} output from {tool_name}")
+        if not line_number:
+            line_number = "1"
 
         if self._path_prefixes_upper:
             file_path_upper = file_path.upper()
@@ -196,7 +304,7 @@ class SarifRun:
         record = {
             "Tool": tool_name,
             "Location": file_path,
-            "Line": error_line,
+            "Line": line_number,
             "Severity": severity,
             "Code": f"{error_id} {message}",
         }
@@ -224,6 +332,12 @@ class SarifRun:
         severities.
         """
         return _count_records_by_issue_code(self.get_records(), severity)
+
+    def get_filtered_count(self) -> int:
+        """
+        Get the number of records that were filtered out because they don't match the filter.
+        """
+        return self._filter.get_filtered_count()
 
 
 class SarifFile:
@@ -256,6 +370,38 @@ class SarifFile:
         for run in self.runs:
             run.init_path_prefix_stripping(autotrim, path_prefixes)
 
+    def init_default_line_number_1(self):
+        """
+        Some SARIF records lack a line number.  If this method is called, the default line number
+        "1" is substituted in that case in the records returned by get_records().  Otherwise,
+        None is returned.
+        """
+        for run in self.runs:
+            run.init_default_line_number_1()
+
+    def init_blame_filter(
+        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+    ):
+        """
+        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
+        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
+        blame information.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria
+        are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria
+        are considered.
+        If both are provided, only issues matching the inclusion criteria and not matching the
+        exclusion criteria are considered.
+        include_substrings = substrings of author_mail to filter issues for inclusion.
+        include_regexes = regular expressions for author_mail to filter issues for inclusion.
+        exclude_substrings = substrings of author_mail to filter issues for exclusion.
+        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
+        """
+        for run in self.runs:
+            run.init_blame_filter(
+                include_substrings, include_regexes, exclude_substrings, exclude_regexes
+            )
+
     def get_abs_file_path(self) -> str:
         """
         Get the absolute file path from which this SARIF data was loaded.
@@ -278,6 +424,7 @@ class SarifFile:
     def get_file_name_extension(self) -> str:
         """
         Get the extension of the file name from which this SARIF data was loaded.
+        Initial "." exlcuded.
         """
         file_name = self.get_file_name()
         return file_name[file_name.index(".") + 1 :] if "." in file_name else ""
@@ -416,6 +563,44 @@ class SarifFileSet:
             subdir.init_path_prefix_stripping(autotrim, path_prefixes)
         for input_file in self.files:
             input_file.init_path_prefix_stripping(autotrim, path_prefixes)
+
+    def init_default_line_number_1(self):
+        """
+        Some SARIF records lack a line number.  If this method is called, the default line number
+        "1" is substituted in that case in the records returned by get_records().  Otherwise,
+        None is returned.
+        """
+        for subdir in self.subdirs:
+            subdir.init_default_line_number_1()
+        for input_file in self.files:
+            input_file.init_default_line_number_1()
+
+    def init_blame_filter(
+        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+    ):
+        """
+        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
+        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
+        blame information.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria
+        are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria
+        are considered.
+        If both are provided, only issues matching the inclusion criteria and not matching the
+        exclusion criteria are considered.
+        include_substrings = substrings of author_mail to filter issues for inclusion.
+        include_regexes = regular expressions for author_mail to filter issues for inclusion.
+        exclude_substrings = substrings of author_mail to filter issues for exclusion.
+        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
+        """
+        for subdir in self.subdirs:
+            subdir.init_blame_filter(
+                include_substrings, include_regexes, exclude_substrings, exclude_regexes
+            )
+        for input_file in self.files:
+            input_file.init_blame_filter(
+                include_substrings, include_regexes, exclude_substrings, exclude_regexes
+            )
 
     def add_dir(self, sarif_file_set):
         """

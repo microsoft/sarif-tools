@@ -81,13 +81,16 @@ def _enhance_with_blame(input_files, repo_path):
         file_path = record["Location"]
         if file_path in file_blame_info:
             blame_info = file_blame_info[file_path]
-            line_no = str(record["Line"])
-            if line_no in blame_info["line_to_commit"]:
-                commit_hash = blame_info["line_to_commit"][line_no]
-                commit = blame_info["commits"][commit_hash]
-                # Add blame information to the SARIF Property Bag of the result
-                result.setdefault("properties", {})["blame"] = commit
-                blame_info_count += 1
+            # raw_line can be None if no line number information was included in the SARIF result.
+            raw_line = record["Line"]
+            if raw_line:
+                line_no = str(raw_line)
+                if line_no in blame_info["line_to_commit"]:
+                    commit_hash = blame_info["line_to_commit"][line_no]
+                    commit = blame_info["commits"][commit_hash]
+                    # Add blame information to the SARIF Property Bag of the result
+                    result.setdefault("properties", {})["blame"] = commit
+                    blame_info_count += 1
     print(f"Found blame information for {blame_info_count} of {item_count} results")
 
 
