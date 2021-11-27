@@ -11,9 +11,11 @@ from sarif import loader, sarif_file
 
 from sarif.operations import (
     blame_op,
+    copy_op,
     csv_op,
     diff_op,
     html_op,
+    info_op,
     ls_op,
     summary_op,
     trend_op,
@@ -28,7 +30,7 @@ def main():
     args = ARG_PARSER.parse_args()
 
     if args.debug:
-        print(f"SARIF tools v{_read_package_version()}")
+        print(f"SARIF tools v{SARIF_TOOLS_PACKAGE_VERSION}")
         print(f"Running code from {__file__}")
         known_args_summary = ", ".join(
             f"{key}={getattr(args, key)}" for key in vars(args)
@@ -40,19 +42,12 @@ def main():
 
 
 def _create_arg_parser():
-    cmd_list = """commands:
-  blame       Enhance SARIF file with information from `git blame`
-  csv         Write a CSV file listing the issues from the SARIF files(s) specified
-  diff        Find the difference between two [sets of] SARIF files
-  html        Write a file with HTML representation of SARIF file
-  ls          List all SARIF files in the directories specified
-  summary     Write a text summary with the counts of issues from the SARIF files(s) specified
-  trend       Write a CSV file with time series data from the SARIF file(s) specified, which must
-              have timestamps in the filenames in format "yyyymmddThhmmssZ"
-  usage       (Command optional) - print usage and exit
-  word        Produce MS Word .docx summaries of the SARIF files specified
-Run `sarif <COMMAND> --help` for command-specific help.
-"""
+    cmd_list = "commands:\n"
+    max_cmd_length = max(len(cmd) for cmd in _COMMANDS)
+    col_width = max_cmd_length + 2
+    for (cmd, cmd_attributes) in _COMMANDS.items():
+        cmd_list += cmd.ljust(col_width) + cmd_attributes["desc"] + "\n"
+    cmd_list += "Run `sarif <COMMAND> --help` for command-specific help."
     package_version = _read_package_version()
     parser = argparse.ArgumentParser(
         prog="sarif",
@@ -63,9 +58,9 @@ Run `sarif <COMMAND> --help` for command-specific help.
     parser.set_defaults(func=_usage)
     subparsers = parser.add_subparsers(dest="command", help="command")
     subparser = {}
-    for (cmd, function) in _COMMANDS.items():
-        subparser[cmd] = subparsers.add_parser(cmd)
-        subparser[cmd].set_defaults(func=function)
+    for (cmd, cmd_attributes) in _COMMANDS.items():
+        subparser[cmd] = subparsers.add_parser(cmd, description=cmd_attributes["desc"])
+        subparser[cmd].set_defaults(func=cmd_attributes["fn"])
 
     # Common options
     parser.add_argument(
@@ -90,12 +85,12 @@ Run `sarif <COMMAND> --help` for command-specific help.
         subparser[cmd].add_argument(
             "--output", "-o", type=str, metavar="PATH", help="Output file or directory"
         )
-    for cmd in ["diff", "ls", "trend", "usage"]:
+    for cmd in ["copy", "diff", "info", "ls", "trend", "usage"]:
         subparser[cmd].add_argument(
             "--output", "-o", type=str, metavar="FILE", help="Output file"
         )
 
-    for cmd in ["csv", "diff", "html", "summary", "trend", "word"]:
+    for cmd in ["copy", "csv", "diff", "summary", "html", "trend", "word"]:
         subparser[cmd].add_argument(
             "--blame-filter",
             "-b",
@@ -111,6 +106,13 @@ Run `sarif <COMMAND> --help` for command-specific help.
         metavar="PATH",
         type=str,
         help="Path to git repository; if not specified, the current working directory is used",
+    )
+    subparser["copy"].add_argument(
+        "--timestamp",
+        "-t",
+        action="store_true",
+        help='Append current timestamp to output filename in the "yyyymmddThhmmssZ" format used by '
+        "the `sarif trend` command",
     )
     # csv defaults to no trimming
     subparser["csv"].add_argument(
@@ -193,7 +195,8 @@ def _check(input_files: sarif_file.SarifFileSet, check_level):
                 break
     if ret > 0:
         sys.stderr.write(
-            f"Check: exiting with return code {ret} due to issues at or above {check_level} severity\n"
+            f"Check: exiting with return code {ret} due to issues at or above {check_level} "
+            "severity\n"
         )
     return ret
 
@@ -218,7 +221,6 @@ def _load_blame_filter_file(file_path):
                 is_include = True
                 if lstrip.startswith("description:"):
                     filter_description = lstrip[12:].strip()
-                    print("Descrtiption is now " + filter_description)
                 elif lstrip.startswith("+: "):
                     is_include = True
                     pattern_spec = lstrip[3:].strip()
@@ -328,6 +330,20 @@ def _blame(args):
     return _check(input_files, args.check)
 
 
+def _copy(args):
+    input_files = loader.load_sarif_files(*args.files_or_dirs)
+    _init_blame_filtering(input_files, args)
+    output = args.output or "out.sarif"
+    output_sarif_file_set = copy_op.generate_sarif(
+        input_files,
+        output,
+        args.timestamp,
+        SARIF_TOOLS_PACKAGE_VERSION,
+        " ".join(sys.argv),
+    )
+    return _check(output_sarif_file_set, args.check)
+
+
 def _csv(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
@@ -354,6 +370,14 @@ def _html(args):
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".html")
     html_op.generate_html(input_files, args.image, output, multiple_file_output)
     return _check(input_files, args.check)
+
+
+def _info(args):
+    input_files = loader.load_sarif_files(*args.files_or_dirs)
+    info_op.generate_info(input_files, args.output)
+    if args.check:
+        return _check(input_files, args.check)
+    return 0
 
 
 def _ls(args):
@@ -415,15 +439,43 @@ def _word(args):
 
 
 _COMMANDS = {
-    "blame": _blame,
-    "csv": _csv,
-    "diff": _diff,
-    "html": _html,
-    "ls": _ls,
-    "summary": _summary,
-    "trend": _trend,
-    "usage": _usage,
-    "word": _word,
+    "blame": {
+        "fn": _blame,
+        "desc": "Enhance SARIF file with information from `git blame`",
+    },
+    "copy": {
+        "fn": _copy,
+        "desc": "Write a new SARIF file containing optionally-filtered data from other SARIF file(s)",
+    },
+    "csv": {
+        "fn": _csv,
+        "desc": "Write a CSV file listing the issues from the SARIF files(s) specified",
+    },
+    "diff": {
+        "fn": _diff,
+        "desc": "Find the difference between two [sets of] SARIF files",
+    },
+    "html": {
+        "fn": _html,
+        "desc": "Write an HTML representation of SARIF file(s) for viewing in a web browser",
+    },
+    "info": {"fn": _info, "desc": "Print information about SARIF file(s) structure"},
+    "ls": {"fn": _ls, "desc": "List all SARIF files in the directories specified"},
+    "summary": {
+        "fn": _summary,
+        "desc": "Write a text summary with the counts of issues from the SARIF files(s) specified",
+    },
+    "trend": {
+        "fn": _trend,
+        "desc": "Write a CSV file with time series data from SARIF files with "
+        '"yyyymmddThhmmssZ" timestamps in their filenames',
+    },
+    "usage": {"fn": _usage, "desc": "(Command optional) - print usage and exit"},
+    "word": {
+        "fn": _word,
+        "desc": "Produce MS Word .docx summaries of the SARIF files specified",
+    },
 }
 
+SARIF_TOOLS_PACKAGE_VERSION = _read_package_version()
 ARG_PARSER = _create_arg_parser()

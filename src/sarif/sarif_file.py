@@ -4,6 +4,7 @@ files, along with associated functions and constants.
 """
 
 import copy
+import datetime
 import os
 import re
 from typing import Dict, Iterator, List, Optional, Tuple
@@ -12,8 +13,9 @@ SARIF_SEVERITIES = ["error", "warning", "note"]
 
 RECORD_ATTRIBUTES = ["Tool", "Severity", "Code", "Location", "Line"]
 
-# Standard time format, e.g. `20211012T110000Z` (not part of the SARIF standard).
+# Standard time format for filenames, e.g. `20211012T110000Z` (not part of the SARIF standard).
 # Can obtain from bash via `date +"%Y%m%dT%H%M%SZ"``
+DATETIME_FORMAT = "%Y%m%dT%H%M%SZ"
 DATETIME_REGEX = r"\d{8}T\d{6}Z"
 
 _SLASHES = ["\\", "/"]
@@ -93,12 +95,19 @@ class FilterStats:
 
     def __init__(self, filter_description):
         self.filter_description = filter_description
-        self.reset_counters()
+        # Filter stats can also be loaded from a file created by `sarif copy`.
+        self.rehydrated = False
+        self.filter_datetime = None
+        self.filtered_in_result_count = 0
+        self.filtered_out_result_count = 0
+        self.missing_blame_count = 0
+        self.unconvincing_line_number_count = 0
 
     def reset_counters(self):
         """
         Zero all the counters.
         """
+        self.filter_datetime = datetime.datetime.now()
         self.filtered_in_result_count = 0
         self.filtered_out_result_count = 0
         self.missing_blame_count = 0
@@ -132,9 +141,12 @@ class FilterStats:
         """
         Generate a summary string for these filter stats.
         """
-        ret = (
-            f"'{self.filter_description}': "
-            f"{self.filtered_out_result_count} filtered out, "
+        ret = f"'{self.filter_description}'"
+        if self.filter_datetime:
+            ret += " at "
+            ret += self.filter_datetime.strftime("%c")
+        ret += (
+            f": {self.filtered_out_result_count} filtered out, "
             f"{self.filtered_in_result_count} passed the filter"
         )
         if self.unconvincing_line_number_count:
@@ -145,9 +157,41 @@ class FilterStats:
         if self.missing_blame_count:
             ret += (
                 f", {self.missing_blame_count} included by default "
-                "for lacking the blame data required for filtering"
+                "for lacking blame data to filter"
             )
         return ret
+
+    def to_json_camel_case(self):
+        """
+        Generate filter stats as JSON using camelCase naming, to fit with SARIF standard section
+        3.8.1 (Property Bags).
+        """
+        return {
+            "filter": self.filter_description,
+            "in": self.filtered_in_result_count,
+            "out": self.filtered_out_result_count,
+            "default": {
+                "noLineNumber": self.unconvincing_line_number_count,
+                "noBlame": self.missing_blame_count,
+            },
+        }
+
+
+def load_filter_stats_from_json_camel_case(json_data):
+    """
+    Load filter stats from a SARIF file property bag
+    """
+    ret = None
+    if json_data:
+        ret = FilterStats(json_data["filter"])
+        ret.rehydrated = True
+        ret.filtered_in_result_count = json_data.get("in", 0)
+        ret.filtered_out_result_count = json_data.get("out", 0)
+        ret.unconvincing_line_number_count = json_data.get("default", {}).get(
+            "noLineNumber", 0
+        )
+        ret.missing_blame_count = json_data.get("default", {}).get("noBlame", 0)
+    return ret
 
 
 def _add_filter_stats(accumulator, filter_stats):
@@ -204,20 +248,36 @@ class _BlameFilter:
             self.exclude_substrings or self.exclude_regexes
         )
 
+    def rehydrate_filter_stats(self, dehydrated_filter_stats, filter_datetime):
+        """
+        Restore filter stats from the SARIF file directly, where they were recordd when the filter
+        was previously run.
+
+        Note that if init_blame_filter is called, these rehydrated stats are discarded.
+        """
+        self.filter_stats = load_filter_stats_from_json_camel_case(dehydrated_filter_stats)
+        self.filter_stats.filter_datetime = filter_datetime
+
     def _zero_counts(self):
         if self.filter_stats:
             self.filter_stats.reset_counters()
 
     def _check_include_result(self, author_mail):
         author_mail_upper = author_mail.upper().strip()
+        matched_include_substrings = None
+        matched_include_regexes = None
         if self.apply_inclusion_filter:
-            matches_an_include_substring = self.include_substrings and any(
-                s in author_mail_upper for s in self.include_substrings
-            )
-            matches_an_include_regexp = self.include_regexes and any(
-                re.search(r, author_mail, re.IGNORECASE) for r in self.include_regexes
-            )
-            if (not matches_an_include_substring) and (not matches_an_include_regexp):
+            if self.include_substrings:
+                matched_include_substrings = [
+                    s for s in self.include_substrings if s in author_mail_upper
+                ]
+            if self.include_regexes:
+                matched_include_regexes = [
+                    r
+                    for r in self.include_regexes
+                    if re.search(r, author_mail, re.IGNORECASE)
+                ]
+            if (not matched_include_substrings) and (not matched_include_regexes):
                 return False
         if self.exclude_substrings and any(
             s in author_mail_upper for s in self.exclude_substrings
@@ -227,29 +287,52 @@ class _BlameFilter:
             re.search(r, author_mail, re.IGNORECASE) for r in self.exclude_regexes
         ):
             return False
-        return True
+        return {
+            "state": "included",
+            "matchedSubstring": [s.lower() for s in matched_include_substrings]
+            if matched_include_substrings
+            else [],
+            "matchedRegex": [r.lower() for r in matched_include_regexes]
+            if matched_include_regexes
+            else [],
+        }
 
     def _filter_append(self, filtered_results, result, blame_info):
+        # Remove any existing filter log on the result
+        result.setdefault("properties", {}).pop("filtered", None)
         if blame_info:
             author_mail = blame_info.get("author-mail", None) or blame_info.get(
                 "committer-mail", None
             )
             if author_mail:
                 # First, check inclusion
-                if self._check_include_result(author_mail):
+                included = self._check_include_result(author_mail)
+                if included:
                     self.filter_stats.filtered_in_result_count += 1
+                    included["filter"] = self.filter_stats.filter_description
+                    result["properties"]["filtered"] = included
                     filtered_results.append(result)
                 else:
                     (_file_path, line_number) = _read_result_location(result)
                     if line_number == "1" or not line_number:
                         # Line number is not convincing.  Blame information may be misattributed.
                         self.filter_stats.unconvincing_line_number_count += 1
+                        result["properties"]["filtered"] = {
+                            "filter": self.filter_stats.filter_description,
+                            "state": "default",
+                            "missing": "line",
+                        }
                         filtered_results.append(result)
                     else:
                         self.filter_stats.filtered_out_result_count += 1
             else:
                 self.filter_stats.missing_blame_count += 1
                 # Result did not contain complete blame information, so don't filter it out.
+                result["properties"]["filtered"] = {
+                    "filter": self.filter_stats.filter_description,
+                    "state": "default",
+                    "missing": "blame",
+                }
                 filtered_results.append(result)
         else:
             self.filter_stats.missing_blame_count += 1
@@ -261,8 +344,8 @@ class _BlameFilter:
         Apply this blame filter to a list of results, return the results that pass the filter
         and as a side-effect, update the filter stats.
         """
-        self._zero_counts()
         if self.apply_inclusion_filter or self.apply_exclusion_filter:
+            self._zero_counts()
             ret = []
             for result in results:
                 blame_info = result.get("properties", {}).get("blame", None)
@@ -293,6 +376,20 @@ class SarifRun:
         self._cached_records = None
         self._filter = _BlameFilter()
         self._default_line_number = None
+        conversion = run_data.get("conversion", None)
+        if conversion:
+            conversion_driver = conversion.get("tool", {}).get("driver", {})
+            if conversion_driver.get("name", None) == "sarif-tools":
+                # This run was written out by this tool!  Can restore filter stats.
+                dehydrated_filter_stats = conversion_driver.get("properties", {}).get(
+                    "filtered", None
+                )
+                if dehydrated_filter_stats:
+                    filter_date = conversion_driver["properties"].get("processed", None)
+                    self._filter.rehydrate_filter_stats(
+                        dehydrated_filter_stats,
+                        datetime.datetime.fromisoformat(filter_date) if filter_date else None
+                    )
 
     def init_path_prefix_stripping(self, autotrim=False, path_prefixes=None):
         """
@@ -380,6 +477,16 @@ class SarifRun:
         Get the tool name from this run.
         """
         return self.run_data["tool"]["driver"]["name"]
+
+    def get_conversion_tool_name(self) -> Optional[str]:
+        """
+        Get the conversion tool name from this run, if any.
+        """
+        if "conversion" in self.run_data:
+            return (
+                self.run_data["conversion"]["tool"].get("driver", {}).get("name", None)
+            )
+        return None
 
     def get_results(self) -> List[Dict]:
         """
