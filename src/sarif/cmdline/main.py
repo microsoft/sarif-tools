@@ -95,16 +95,11 @@ Run `sarif <COMMAND> --help` for command-specific help.
 
     for cmd in ["csv", "diff", "summary", "html", "trend", "word"]:
         subparser[cmd].add_argument(
-            "--blame-filter-include",
-            "-i",
+            "--blame-filter",
+            "-b",
             type=str,
-            help="File containing a newline-separated filter list of author-mail to include",
-        )
-        subparser[cmd].add_argument(
-            "--blame-filter-exclude",
-            "-x",
-            type=str,
-            help="File containing a newline-separated filter list of author-mail to exclude",
+            metavar="FILE",
+            help="Specify the blame filter file to apply.  See README for format.",
         )
 
     # Command-specific options
@@ -128,11 +123,10 @@ Run `sarif <COMMAND> --help` for command-specific help.
             "--no-autotrim",
             "-n",
             action="store_true",
-            help="Do not strip off the common prefix of paths in the CSV output",
+            help="Do not strip off the common prefix of paths in the output document",
         )
         subparser[cmd].add_argument(
             "--image",
-            "-i",
             type=str,
             help="Image to include at top of file - SARIF logo by default",
         )
@@ -153,6 +147,7 @@ Run `sarif <COMMAND> --help` for command-specific help.
                 metavar="file_or_dir",
                 type=str,
                 nargs="*",
+                default=["."],
                 help="A SARIF file or a directory containing SARIF files",
             )
     subparser["diff"].add_argument(
@@ -202,34 +197,66 @@ def _check(input_files: sarif_file.SarifFileSet, check_level):
 
 
 def _load_blame_filter_file(file_path):
-    regexes = []
-    substrings = []
-    with open(file_path) as file_in:
-        for l in file_in.readlines():
-            lstrip = l.strip()
-            if lstrip:
-                if lstrip.startswith("/") and lstrip.endswith("/") and len(lstrip) > 2:
-                    regexes.append(lstrip[1 : len(lstrip) - 1])
+    filter_description = os.path.basename(file_path)
+    include_substrings = []
+    include_regexps = []
+    exclude_substrings = []
+    exclude_regexps = []
+    try:
+        with open(file_path, encoding="utf-8") as file_in:
+            for line in file_in.readlines():
+                if line.startswith("\ufeff"):
+                    # Strip byte order mark
+                    line = line[1:]
+                lstrip = line.strip()
+                if lstrip.startswith("#"):
+                    # Ignore comment lines
+                    continue
+                pattern_spec = None
+                is_include = True
+                if lstrip.startswith("description:"):
+                    filter_description = lstrip[12:].strip()
+                    print("Descrtiption is now " + filter_description)
+                elif lstrip.startswith("+: "):
+                    is_include = True
+                    pattern_spec = lstrip[3:].strip()
+                elif lstrip.startswith("-: "):
+                    is_include = False
+                    pattern_spec = lstrip[3:].strip()
                 else:
-                    substrings.append(lstrip)
-    return (substrings, regexes)
+                    is_include = True
+                    pattern_spec = lstrip
+                if pattern_spec:
+                    pattern_spec_len = len(pattern_spec)
+                    if (
+                        pattern_spec_len > 2
+                        and pattern_spec.startswith("/")
+                        and pattern_spec.endswith("/")
+                    ):
+                        (include_regexps if is_include else exclude_regexps).append(
+                            pattern_spec[1 : pattern_spec_len - 1]
+                        )
+                    else:
+                        (
+                            include_substrings if is_include else exclude_substrings
+                        ).append(pattern_spec)
+    except UnicodeDecodeError as error:
+        raise IOError(
+            f"Cannot read blame filter file {file_path}: not UTF-8 encoded?"
+        ) from error
+    return (
+        filter_description,
+        include_substrings,
+        include_regexps,
+        exclude_substrings,
+        exclude_regexps,
+    )
 
 
 def _init_blame_filtering(input_files, args):
-    if args.blame_filter_include or args.blame_filter_exclude:
-        (include_substrings, include_regexes) = (
-            _load_blame_filter_file(args.blame_filter_include)
-            if args.blame_filter_include
-            else ([], [])
-        )
-        (exclude_substrings, exclude_regexes) = (
-            _load_blame_filter_file(args.blame_filter_exclude)
-            if args.blame_filter_exclude
-            else ([], [])
-        )
-        input_files.init_blame_filter(
-            include_substrings, include_regexes, exclude_substrings, exclude_regexes
-        )
+    if args.blame_filter:
+        filters = _load_blame_filter_file(args.blame_filter)
+        input_files.init_blame_filter(*filters)
 
 
 def _init_path_prefix_stripping(input_files, args, strip_by_default):

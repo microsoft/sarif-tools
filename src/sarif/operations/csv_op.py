@@ -27,6 +27,9 @@ def generate_csv(input_files: SarifFileSet, output: str, output_multiple_files: 
             _write_to_csv(
                 input_file.get_records(), os.path.join(output, output_file_name)
             )
+            filter_stats = input_file.get_filter_stats()
+            if filter_stats:
+                print(f"  Results are filtered by {filter_stats}")
         output_file = os.path.join(output, "static_analysis_output.csv")
     source_description = input_files.get_description()
     print(
@@ -36,6 +39,9 @@ def generate_csv(input_files: SarifFileSet, output: str, output_multiple_files: 
         os.path.basename(output_file),
     )
     _write_to_csv(input_files.get_records(), output_file)
+    filter_stats = input_files.get_filter_stats()
+    if filter_stats:
+        print(f"  Results are filtered by {filter_stats}")
 
 
 def _write_to_csv(list_of_errors, output_file):

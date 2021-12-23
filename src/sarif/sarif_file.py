@@ -3,10 +3,10 @@ Defines classes representing sets of SARIF files, individual SARIF files and run
 files, along with associated functions and constants.
 """
 
+import copy
 import os
 import re
-import sys
-from typing import Iterator, Tuple
+from typing import Iterator, Optional, Tuple
 
 SARIF_SEVERITIES = ["error", "warning", "note"]
 
@@ -86,82 +86,196 @@ def _count_records_by_issue_code(records, severity) -> list[tuple]:
     return sorted(code_to_count.items(), key=lambda x: x[1], reverse=True)
 
 
-class _Filter:
+class FilterStats:
+    """
+    Statistics that record the outcome of a a filter.
+    """
+
+    def __init__(self, filter_description):
+        self.filter_description = filter_description
+        self.reset_counters()
+
+    def reset_counters(self):
+        """
+        Zero all the counters.
+        """
+        self.filtered_in_result_count = 0
+        self.filtered_out_result_count = 0
+        self.missing_blame_count = 0
+        self.unconvincing_line_number_count = 0
+
+    def add(self, other_filter_stats):
+        """
+        Add another set of filter stats to my totals.
+        """
+        if other_filter_stats:
+            if other_filter_stats.filter_description and (
+                other_filter_stats.filter_description != self.filter_description
+            ):
+                self.filter_description += f", {other_filter_stats.filter_description}"
+            self.filtered_in_result_count += other_filter_stats.filtered_in_result_count
+            self.filtered_out_result_count += (
+                other_filter_stats.filtered_out_result_count
+            )
+            self.missing_blame_count += other_filter_stats.missing_blame_count
+            self.unconvincing_line_number_count += (
+                other_filter_stats.unconvincing_line_number_count
+            )
+
+    def __str__(self):
+        """
+        Automatic to_string()
+        """
+        return self.to_string()
+
+    def to_string(self):
+        """
+        Generate a summary string for these filter stats.
+        """
+        ret = (
+            f"'{self.filter_description}': "
+            f"{self.filtered_out_result_count} filtered out, "
+            f"{self.filtered_in_result_count} passed the filter"
+        )
+        if self.unconvincing_line_number_count:
+            ret += (
+                f", {self.unconvincing_line_number_count} included by default "
+                "for lacking line number information"
+            )
+        if self.missing_blame_count:
+            ret += (
+                f", {self.missing_blame_count} included by default "
+                "for lacking the blame data required for filtering"
+            )
+        return ret
+
+
+def _add_filter_stats(accumulator, filter_stats):
+    if filter_stats:
+        if accumulator:
+            accumulator.add(filter_stats)
+            return accumulator
+        return copy.copy(filter_stats)
+    return accumulator
+
+
+class _BlameFilter:
+    """
+    Class that implements blame filtering.
+    """
+
     def __init__(self):
+        self.filter_stats = None
         self.include_substrings = None
         self.include_regexes = None
+        self.apply_inclusion_filter = False
         self.exclude_substrings = None
         self.exclude_regexes = None
+        self.apply_exclusion_filter = False
 
     def init_blame_filter(
-        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+        self,
+        filter_description,
+        include_substrings,
+        include_regexes,
+        exclude_substrings,
+        exclude_regexes,
     ):
+        """
+        Initialise the blame filter with the given filter patterns.
+        """
+        self.filter_stats = FilterStats(filter_description)
         self.include_substrings = (
             [s.upper().strip() for s in include_substrings]
             if include_substrings
             else None
         )
         self.include_regexes = include_regexes[:] if include_regexes else None
+        self.apply_inclusion_filter = bool(
+            self.include_substrings or self.include_regexes
+        )
         self.exclude_substrings = (
             [s.upper().strip() for s in exclude_substrings]
             if exclude_substrings
             else None
         )
         self.exclude_regexes = exclude_regexes[:] if exclude_regexes else None
-        self.filtered_out_result_count = 0
-        self.missing_blame_count = 0
+        self.apply_exclusion_filter = bool(
+            self.exclude_substrings or self.exclude_regexes
+        )
+
+    def _zero_counts(self):
+        if self.filter_stats:
+            self.filter_stats.reset_counters()
+
+    def _check_include_result(self, author_mail):
+        author_mail_upper = author_mail.upper().strip()
+        if self.apply_inclusion_filter:
+            matches_an_include_substring = self.include_substrings and any(
+                s in author_mail_upper for s in self.include_substrings
+            )
+            matches_an_include_regexp = self.include_regexes and any(
+                re.search(r, author_mail, re.IGNORECASE) for r in self.include_regexes
+            )
+            if (not matches_an_include_substring) and (not matches_an_include_regexp):
+                return False
+        if self.exclude_substrings and any(
+            s in author_mail_upper for s in self.exclude_substrings
+        ):
+            return False
+        if self.exclude_regexes and any(
+            re.search(r, author_mail, re.IGNORECASE) for r in self.exclude_regexes
+        ):
+            return False
+        return True
+
+    def _filter_append(self, filtered_results, result, blame_info):
+        if blame_info:
+            author_mail = blame_info.get("author-mail", None) or blame_info.get(
+                "committer-mail", None
+            )
+            if author_mail:
+                # First, check inclusion
+                if self._check_include_result(author_mail):
+                    self.filter_stats.filtered_in_result_count += 1
+                    filtered_results.append(result)
+                else:
+                    (_file_path, line_number) = _read_result_location(result)
+                    if line_number == "1" or not line_number:
+                        # Line number is not convincing.  Blame information may be misattributed.
+                        self.filter_stats.unconvincing_line_number_count += 1
+                        filtered_results.append(result)
+                    else:
+                        self.filter_stats.filtered_out_result_count += 1
+            else:
+                self.filter_stats.missing_blame_count += 1
+                # Result did not contain complete blame information, so don't filter it out.
+                filtered_results.append(result)
+        else:
+            self.filter_stats.missing_blame_count += 1
+            # Result did not contain blame information, so don't filter it out.
+            filtered_results.append(result)
 
     def filter_results(self, results):
-        if (
-            self.include_substrings
-            or self.include_regexes
-            or self.exclude_substrings
-            or self.exclude_regexes
-        ):
+        """
+        Apply this blame filter to a list of results, return the results that pass the filter
+        and as a side-effect, update the filter stats.
+        """
+        self._zero_counts()
+        if self.apply_inclusion_filter or self.apply_exclusion_filter:
             ret = []
             for result in results:
                 blame_info = result.get("properties", {}).get("blame", None)
-                if blame_info:
-                    author_mail = blame_info.get("author-mail", None) or blame_info.get(
-                        "committer-mail", None
-                    )
-                    if author_mail:
-                        author_mail_upper = author_mail.upper().strip()
-                        # first check inclusion
-                        include = True
-                        if self.include_substrings and not any(
-                            s in author_mail_upper for s in self.include_substrings
-                        ):
-                            include = False
-                        elif self.include_regexes and not any(
-                            re.search(r, author_mail, re.IGNORECASE)
-                            for r in self.include_regexes
-                        ):
-                            include = False
-                        elif self.exclude_substrings and any(
-                            s in author_mail_upper for s in self.exclude_substrings
-                        ):
-                            include = False
-                        elif self.exclude_regexes and any(
-                            re.search(r, author_mail, re.IGNORECASE)
-                            for r in self.exclude_regexes
-                        ):
-                            include = False
-                        if include:
-                            ret.append(result)
-                        else:
-                            self.filtered_out_result_count += 1
-                    else:
-                        self.missing_blame_count += 1
-                        # Result did not contain complete blame information, so don't filter it out.
-                        ret.append(result)
-                else:
-                    self.missing_blame_count += 1
-                    # Result did not contain blame information, so don't filter it out.
-                    ret.append(result)
+                self._filter_append(ret, result, blame_info)
             return ret
-        else:
-            return results
+        # No inclusion or exclusion patterns
+        return results
+
+    def get_filter_stats(self) -> Optional[FilterStats]:
+        """
+        Get the statistics from running this filter.
+        """
+        return self.filter_stats
 
 
 class SarifRun:
@@ -177,7 +291,7 @@ class SarifRun:
         self.run_data = run_data
         self._path_prefixes_upper = None
         self._cached_records = None
-        self._filter = _Filter()
+        self._filter = _BlameFilter()
         self._default_line_number = None
 
     def init_path_prefix_stripping(self, autotrim=False, path_prefixes=None):
@@ -229,10 +343,34 @@ class SarifRun:
         self._cached_records = None
 
     def init_blame_filter(
-        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+        self,
+        filter_description,
+        include_substrings,
+        include_regexes,
+        exclude_substrings,
+        exclude_regexes,
     ):
+        """
+        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
+        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
+        blame information.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria
+        are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria
+        are considered.
+        If both are provided, only issues matching the inclusion criteria and not matching the
+        exclusion criteria are considered.
+        include_substrings = substrings of author_mail to filter issues for inclusion.
+        include_regexes = regular expressions for author_mail to filter issues for inclusion.
+        exclude_substrings = substrings of author_mail to filter issues for exclusion.
+        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
+        """
         self._filter.init_blame_filter(
-            include_substrings, include_regexes, exclude_substrings, exclude_regexes
+            filter_description,
+            include_substrings,
+            include_regexes,
+            exclude_substrings,
+            exclude_regexes,
         )
         # Clear the unfiltered records cached by get_records() above.
         self._cached_records = None
@@ -245,8 +383,8 @@ class SarifRun:
 
     def get_results(self) -> list[dict]:
         """
-        Get the results from this run.  These are the Result objects as defined in the
-        SARIF standard section 3.27.
+        Get the results from this run.  These are the Result objects as defined in the SARIF
+        standard section 3.27.  The results are filtered if a filter has ben configured.
         https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638
         """
         return self._filter.filter_results(self.run_data["results"])
@@ -333,11 +471,11 @@ class SarifRun:
         """
         return _count_records_by_issue_code(self.get_records(), severity)
 
-    def get_filtered_count(self) -> int:
+    def get_filter_stats(self) -> Optional[FilterStats]:
         """
-        Get the number of records that were filtered out because they don't match the filter.
+        Get the number of records that were included or excluded by the filter.
         """
-        return self._filter.get_filtered_count()
+        return self._filter.get_filter_stats()
 
 
 class SarifFile:
@@ -380,7 +518,12 @@ class SarifFile:
             run.init_default_line_number_1()
 
     def init_blame_filter(
-        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+        self,
+        filter_description,
+        include_substrings,
+        include_regexes,
+        exclude_substrings,
+        exclude_regexes,
     ):
         """
         Set up blame filtering.  This is applied to the author_mail field added to the "blame"
@@ -399,7 +542,11 @@ class SarifFile:
         """
         for run in self.runs:
             run.init_blame_filter(
-                include_substrings, include_regexes, exclude_substrings, exclude_regexes
+                filter_description,
+                include_substrings,
+                include_regexes,
+                exclude_substrings,
+                exclude_regexes,
             )
 
     def get_abs_file_path(self) -> str:
@@ -497,6 +644,15 @@ class SarifFile:
         """
         return _count_records_by_issue_code(self.get_records(), severity)
 
+    def get_filter_stats(self) -> Optional[FilterStats]:
+        """
+        Get the number of records that were included or excluded by the filter.
+        """
+        ret = None
+        for run in self.runs:
+            ret = _add_filter_stats(ret, run.get_filter_stats())
+        return ret
+
 
 class SarifFileSet:
     """
@@ -576,7 +732,12 @@ class SarifFileSet:
             input_file.init_default_line_number_1()
 
     def init_blame_filter(
-        self, include_substrings, include_regexes, exclude_substrings, exclude_regexes
+        self,
+        filter_description,
+        include_substrings,
+        include_regexes,
+        exclude_substrings,
+        exclude_regexes,
     ):
         """
         Set up blame filtering.  This is applied to the author_mail field added to the "blame"
@@ -595,11 +756,19 @@ class SarifFileSet:
         """
         for subdir in self.subdirs:
             subdir.init_blame_filter(
-                include_substrings, include_regexes, exclude_substrings, exclude_regexes
+                filter_description,
+                include_substrings,
+                include_regexes,
+                exclude_substrings,
+                exclude_regexes,
             )
         for input_file in self.files:
             input_file.init_blame_filter(
-                include_substrings, include_regexes, exclude_substrings, exclude_regexes
+                filter_description,
+                include_substrings,
+                include_regexes,
+                exclude_substrings,
+                exclude_regexes,
             )
 
     def add_dir(self, sarif_file_set):
@@ -686,3 +855,14 @@ class SarifFileSet:
         severities.
         """
         return _count_records_by_issue_code(self.get_records(), severity)
+
+    def get_filter_stats(self) -> Optional[FilterStats]:
+        """
+        Get the number of records that were included or excluded by the filter.
+        """
+        ret = None
+        for subdir in self.subdirs:
+            ret = _add_filter_stats(ret, subdir.get_filter_stats())
+        for input_file in self.files:
+            ret = _add_filter_stats(ret, input_file.get_filter_stats())
+        return ret

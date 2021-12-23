@@ -80,6 +80,242 @@ sarif blame -o "C:\temp\sarif_files_with_blame_info" -c "C:\code\my_source_repo"
 
 If the current working directory is the git repository, the `-c` argument can be omitted.
 
+See [Blame filtering](blame-filtering) below for the format of the blame information that gets added to the SARIF files.
+
+### csv
+
+```
+usage: sarif csv [-h] [--output OUTPUT] [--blame-filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir ...]
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Output file or directory
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+  --autotrim, -a        Strip off the common prefix of paths in the CSV output
+  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
+```
+
+Write out a simple tabular list of issues from [a set of] SARIF files.  This can then be analysed, e.g. via Pivot Tables in Excel.
+
+Use the `--trim` option to strip specific prefixes from the paths, to make the CSV less verbose.  Alternatively, use `--autotrim` to strip off the longest common prefix.
+
+Generate a CSV summary of a single SARIF file with common file path prefix suppressed:
+```shell
+sarif csv "C:\temp\sarif_files\devskim_myapp.sarif"
+```
+
+Generate a CSV summary of a directory of SARIF files with path prefix `C:\code\my_source_repo` suppressed:
+```shell
+sarif csv --trim c:\code\my_source_repo "C:\temp\sarif_files"
+```
+
+See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+
+### diff
+
+```
+usage: sarif diff [-h] [--output OUTPUT] [--blame-filter FILE] old_file_or_dir new_file_or_dir
+
+positional arguments:
+  old_file_or_dir       An old SARIF file or a directory containing the old SARIF files
+  new_file_or_dir       A new SARIF file or a directory containing the new SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Output file
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+```
+
+Print the difference between two [sets of] SARIF files.
+
+Difference between the issues in two SARIF files:
+```shell
+sarif diff "C:\temp\old_sarif_files\devskim_myapp.sarif" "C:\temp\sarif_files\devskim_myapp.sarif"
+```
+
+Difference between the issues in two directories of SARIF files:
+```shell
+sarif diff "C:\temp\old_sarif_files" "C:\temp\sarif_files"
+```
+
+Write output to JSON file instead of printing to stdout:
+
+```shell
+sarif diff -o mydiff.json "C:\temp\old_sarif_files\devskim_myapp.sarif" "C:\temp\sarif_files\devskim_myapp.sarif"
+```
+
+See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+
+### html
+
+```
+usage: sarif html [-h] [--output OUTPUT] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir ...]
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Output file or directory
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+  --no-autotrim, -n     Do not strip off the common prefix of paths in the output document
+  --image IMAGE         Image to include at top of file - SARIF logo by default
+  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
+```
+
+Create an HTML file summarising SARIF results.
+
+```shell
+sarif html -o summary.html "C:\temp\sarif_files"
+```
+
+Use the `--trim` option to strip specific prefixes from the paths, to make the generated HTML page less verbose.  The longest common prefix of the paths will be trimmed unless `--no-autotrim` is specified.
+
+Use the `--image` option to provide a header image for the top of the HTML page.  The image is embedded into the HTML, so the HTML document remains a portable standalone file.
+
+See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+
+### ls
+
+```
+usage: sarif ls [-h] [--output OUTPUT] [file_or_dir ...]
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Output file
+```
+
+List SARIF files in one or more directories.
+
+```shell
+sarif ls "C:\temp\sarif_files" "C:\temp\sarif_with_date"
+```
+
+### summary
+
+```
+usage: sarif summary [-h] [--output OUTPUT] [--blame-filter FILE] [file_or_dir ...]
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Output file or directory
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+```
+
+Print a summary of the issues in one or more SARIF file(s), grouped by severity and then ordered by number of occurrences.
+
+When directories are provided as input and output, a summary is written for each input file, along with another file containing the totals.
+
+```shell
+sarif summary -o summaries "C:\temp\sarif_files"
+```
+
+When no output directory or file is specified, the overall summary is printed to the standard output.
+
+```shell
+sarif summary "C:\temp\sarif_files\devskim_myapp.sarif"
+```
+
+See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+
+### trend
+
+```
+usage: sarif trend [-h] [--output OUTPUT] [--blame-filter FILE] [--dateformat {dmy,mdy,ymd}] [file_or_dir ...]
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Output file
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+  --dateformat {dmy,mdy,ymd}, -f {dmy,mdy,ymd}
+                        Date component order to use in output CSV. Default is `dmy`
+```
+
+Generate a CSV showing a timeline of issues from a set of SARIF files in a directory.  The SARIF file names must contain a
+timestamp in the specific format `yyyymmddThhhmmss` e.g. `20211012T110000Z`.
+
+The CSV can be loaded in Microsoft Excel for graphing and trend analysis.
+
+```shell
+sarif trend -o timeline.csv "C:\temp\sarif_with_date" --dateformat dmy
+```
+
+See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+
+### usage
+
+Print usage and exit.
+
+```shell
+sarif usage
+```
+
+### word
+
+```
+usage: sarif word [-h] [--output OUTPUT] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir ...]
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output OUTPUT, -o OUTPUT
+                        Output file or directory
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+  --no-autotrim, -n     Do not strip off the common prefix of paths in the output document
+  --image IMAGE         Image to include at top of file - SARIF logo by default
+  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
+```
+Create Word documents representing a SARIF file or multiple SARIF files.
+
+If directories are provided for the `-o` option and the input, then a Word document is produced for each individual SARIF file
+and for the full set of SARIF files.  Otherwise, a single Word document is created.
+
+Create a Word document for each SARIF file and one for all of them together, in the `reports` directory (created if non-existent):
+```shell
+sarif word -o reports "C:\temp\sarif_files"
+```
+
+Create a Word document for a single SARIF file:
+```shell
+sarif word -o "reports\devskim_myapp.docx" "C:\temp\sarif_files\devskim_myapp.sarif"
+```
+
+Use the `--trim` option to strip specific prefixes from the paths, to make the generated documents less verbose.  The longest common prefix of the paths will be trimmed unless `--no-autotrim` is specified.
+
+Use the `--image` option to provide a header image for the top of the Word document.
+
+See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+
+# Blame filtering
+
+Use the `sarif blame` command to augment a SARIF file or multiple SARIF files with blame information.
+
 Blame information is added to the property bag of each `result` object for which it was successfully obtained.  The keys and values used are as in the [git blame porcelain format](https://git-scm.com/docs/git-blame#_the_porcelain_format).  E.g.:
 
 ```json
@@ -105,216 +341,48 @@ Blame information is added to the property bag of each `result` object for which
 ```
 Note that the bare `boundary` key is given the automatic value `true`.
 
-This blame data can then be used for filtering and summarising (TODO: future enhancement!).
-
-### csv
+This blame data can then be used for filtering and summarising via the `--blame-filter` option available for various commands.  This option requires a path to a filter-list file, containing a list of patterns and substrings to match against the blame information author email.  The format of a filter-list file is as follows:
 
 ```
-usage: sarif csv [-h] [--output OUTPUT] [--autotrim] [--trim PREFIX] [file_or_dir ...]
-
-positional arguments:
-  file_or_dir           A SARIF file or a directory containing SARIF files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
-                        Output file or directory
-  --autotrim, -a        Strip off the common prefix of paths in the CSV output
-  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
+# Lines beginning with # are interpreted as comments and ignored.
+# A line beginning with "description: " is interpreted as an optional description for the filter.  If no title is specified, the filter file name is used.
+description: Example filter from README.md
+# Lines beginning with "+: " are interpreted as inclusion substrings.  E.g. the following line includes issues whose author-mail field contains "@microsoft.com".
++: @microsoft.com
+# The "+: " can be omitted.
+@microsoft.com
+# Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are included.  Use ^ and $ to match the whole author-mail field.
++: /^<myname.*\.com>$/
+# Again, the "+: " can be omitted for a regular expression include pattern.
+/^<myname.*\.com>$/
+# Lines beginning with "-: " are interpreted as exclusion substrings.  E.g. the following line excludes issues whose author-mail field contains "@microsoft.com".
+-: @bad.microsoft.com
+# Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are excluded.  Use ^ and $ to match the whole author-mail field.  E.g. the following pattern excludes all issues whose author-mail field contains a GUID.
+-: /[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/
 ```
 
-Write out a simple tabular list of issues from [a set of] SARIF files.  This can then be analysed, e.g. via Pivot Tables in Excel.
-
-Use the `--trim` option to strip specific prefixes from the paths, to make the CSV less verbose.  Alternatively, use `--autotrim` to strip off the longest common prefix.
-
-Generate a CSV summary of a single SARIF file with common file path prefix suppressed:
-```shell
-sarif csv "C:\temp\sarif_files\devskim_myapp.sarif"
-```
-
-Generate a CSV summary of a directory of SARIF files with path prefix `C:\code\my_source_repo` suppressed:
-```shell
-sarif csv --trim c:\code\my_source_repo "C:\temp\sarif_files"
-```
-
-### diff
+Or, without the comments and alternative forms:
 
 ```
-usage: sarif diff [-h] [--output OUTPUT] old_file_or_dir new_file_or_dir
-
-positional arguments:
-  old_file_or_dir       An old SARIF file or a directory containing the old SARIF files
-  new_file_or_dir       A new SARIF file or a directory containing the new SARIF files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
-                        Output file or directory
+description: Example filter from README.md
++: @microsoft.com
++: /^<myname.*\.com>$/
+-: @bad.microsoft.com
+-: /[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/
 ```
 
-Print the difference between two [sets of] SARIF files.
+All matching is case insensitive, because email addresses are.  Whitespace at the start and end of lines is ignored, which also means that line ending characters don't matter.  The blame filter file must be UTF-8 encoded (including plain ASCII7).  It can have a byte order mark or not.
 
-Difference between the issues in two SARIF files:
-```shell
-sarif diff "C:\temp\old_sarif_files\devskim_myapp.sarif" "C:\temp\sarif_files\devskim_myapp.sarif"
-```
+If there are no inclusion patterns, all issues are included except for those matching the exclusion patterns.  If there are inclusion patterns, only issues matching the inclusion patterns are included.  If an issue matches one or more inclusion patterns and also at least one exclusion pattern, it is excluded.
 
-Difference between the issues in two directories of SARIF files:
-```shell
-sarif diff "C:\temp\old_sarif_files" "C:\temp\sarif_files"
-```
-
-Write output to JSON file instead of printing to stdout:
-
-```shell
-sarif diff -o mydiff.json "C:\temp\old_sarif_files\devskim_myapp.sarif" "C:\temp\sarif_files\devskim_myapp.sarif"
-```
-
-
-### html
+Sometimes, there may be issues in the SARIF file to which the filter cannot be applied, because blame information is not available.  This can be for two reasons: either there is no blame information recorded for the file in which the issue occurred, or the issue location lacks a line number (or specifies line number 1 as a placeholder) so that blame information cannot be correlated to the issue.  These issues are included by default.  To identify which issues these are, create a filter file that excludes everything to which the filter can be applied:
 
 ```
-usage: sarif html [-h] [--output OUTPUT] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir ...]
-
-positional arguments:
-  file_or_dir           A SARIF file or a directory containing SARIF files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
-                        Output file or directory
-  --no-autotrim, -n     Do not strip off the common prefix of paths in the CSV output
-  --image IMAGE, -i IMAGE
-                        Image to include at top of file - SARIF logo by default
-  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
+description: Exclude everything filterable
+-: /.*/
 ```
 
-Create an HTML file summarising SARIF results.
-
-```shell
-sarif html -o summary.html "C:\temp\sarif_files"
-```
-
-Use the `--trim` option to strip specific prefixes from the paths, to make the generated HTML page less verbose.  The longest common prefix of the paths will be trimmed unless `--no-autotrim` is specified.
-
-Use the `--image` option to provide a header image for the top of the HTML page.  The image is embedded into the HTML, so the HTML document remains a portable standalone file.
-
-### ls
-
-```
-usage: sarif ls [-h] [--output OUTPUT] [file_or_dir ...]
-
-positional arguments:
-  file_or_dir           A SARIF file or a directory containing SARIF files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
-                        Output file
-```
-
-List SARIF files in one or more directories.
-
-```shell
-sarif ls "C:\temp\sarif_files" "C:\temp\sarif_with_date"
-```
-
-### summary
-
-```
-usage: sarif summary [-h] [--output OUTPUT] [file_or_dir ...]
-
-positional arguments:
-  file_or_dir           A SARIF file or a directory containing SARIF files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
-                        Output file or directory
-```
-
-Print a summary of the issues in one or more SARIF file(s), grouped by severity and then ordered by number of occurrences.
-
-When directories are provided as input and output, a summary is written for each input file, along with another file containing the totals.
-
-```shell
-sarif summary -o summaries "C:\temp\sarif_files"
-```
-
-When no output directory or file is specified, the overall summary is printed to the standard output.
-
-```shell
-sarif summary "C:\temp\sarif_files\devskim_myapp.sarif"
-```
-
-### trend
-
-```
-usage: sarif trend [-h] [--output OUTPUT] [--dateformat {dmy,mdy,ymd}] [file_or_dir ...]
-
-positional arguments:
-  file_or_dir           A SARIF file or a directory containing SARIF files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
-                        Output file
-  --dateformat {dmy,mdy,ymd}, -f {dmy,mdy,ymd}
-                        Date component order to use in output CSV. Default is `dmy`
-```
-
-Generate a CSV showing a timeline of issues from a set of SARIF files in a directory.  The SARIF file names must contain a
-timestamp in the specific format `yyyymmddThhhmmss` e.g. `20211012T110000Z`.
-
-The CSV can be loaded in Microsoft Excel for graphing and trend analysis.
-
-```shell
-sarif trend -o timeline.csv "C:\temp\sarif_with_date" --dateformat dmy
-```
-
-### usage
-
-Print usage and exit.
-
-```shell
-sarif usage
-```
-
-### word
-
-```
-usage: sarif word [-h] [--output OUTPUT] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir ...]
-
-positional arguments:
-  file_or_dir           A SARIF file or a directory containing SARIF files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
-                        Output file or directory
-  --no-autotrim, -n     Do not strip off the common prefix of paths in the CSV output
-  --image IMAGE, -i IMAGE
-                        Image to include at top of file - SARIF logo by default
-  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
-```
-Create Word documents representing a SARIF file or multiple SARIF files.
-
-If directories are provided for the `-o` option and the input, then a Word document is produced for each individual SARIF file
-and for the full set of SARIF files.  Otherwise, a single Word document is created.
-
-Create a Word document for each SARIF file and one for all of them together, in the `reports` directory (created if non-existent):
-```shell
-sarif word -o reports "C:\temp\sarif_files"
-```
-
-Create a Word document for a single SARIF file:
-```shell
-sarif word -o "reports\devskim_myapp.docx" "C:\temp\sarif_files\devskim_myapp.sarif"
-```
-
-Use the `--trim` option to strip specific prefixes from the paths, to make the generated documents less verbose.  The longest common prefix of the paths will be trimmed unless `--no-autotrim` is specified.
-
-Use the `--image` option to provide a header image for the top of the Word document.
+Then run a `sarif` command using this filter file as the `--blame-filter` to see the default-included issues.
 
 # Usage as a Python library
 
@@ -334,7 +402,7 @@ issue_count_by_severity = sarif_data.get_result_count_by_severity()
 error_histogram = sarif_data.get_issue_code_histogram("error")
 ```
 
-## API
+## Result access API
 
 The three classes defined in the `sarif_files` module, `SarifFileSet`, `SarifFile` and `SarifRun`,
 provide similar APIs, which allows SARIF results to be handled similarly at multiple levels of
@@ -400,6 +468,16 @@ These fields and methods allow access to the underlying information about the SA
 - `SarifFile.runs` - a list of `SarifRun` objects contained in the SARIF file.  Most SARIF files
   only contain a single run, but it is possible to aggregate runs from multiple tools into a
   single SARIF file.
+
+### Path shortening API
+
+Call `init_path_prefix_stripping(autotrim, path_prefixes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up path filtering, either automatically removing the longest common prefix (`autotrim=True`) or removing specific prefixes (`autotrim=False` and a list of strings in `path_prefixes`).
+
+### Blame filtering API
+
+Call `init_blame_filter(filter_description, include_substrings, include_regexes, exclude_substrings, exclude_regexes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up blame filtering.  `filter_description` is a string and the other parameters are lists of strings (with no `/` characters around the regular expressions).  They correspond in an obvious way to the filter file contents described in [Blame filtering](blame-filtering) above.
+
+Call `get_filter_stats()` to retrieve the filter stats after reading the results or records from sarif files.  It returns `None` if there is no filter, or otherwise a `sarif_file.FilterStats` object with integer fields `filtered_in_result_count`, `filtered_out_result_count`, `missing_blame_count` and `unconvincing_line_number_count`.  Call `to_string()` on the `FilterStats` object for a readable representation of these statistics, which also includes the filter file name or description (`filter_description` field).
 
 # Suggested usage in CI pipelines
 

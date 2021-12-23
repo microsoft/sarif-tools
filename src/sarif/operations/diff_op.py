@@ -56,6 +56,12 @@ def print_diff(
             _signed_change(diff["all"]["+"]),
             _signed_change(-diff["all"]["-"]),
         )
+    filter_stats = original_sarif.get_filter_stats()
+    if filter_stats:
+        print(f"  'Before' results were filtered by {filter_stats}")
+    filter_stats = new_sarif.get_filter_stats()
+    if filter_stats:
+        print(f"  'After' results were filtered by {filter_stats}")
     ret = 0
     if check_level:
         for severity in SARIF_SEVERITIES:

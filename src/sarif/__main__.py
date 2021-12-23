@@ -1,4 +1,6 @@
-# This file supports `python -m sarif` invocation.
+"""
+This file supports `python -m sarif` invocation.
+"""
 
 import sys
 

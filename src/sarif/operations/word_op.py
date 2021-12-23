@@ -11,16 +11,14 @@ https://python-docx.readthedocs.io/
 from datetime import datetime
 import os
 
-from docx import Document
-from docx.shared import Inches
-from docx.enum.text import WD_TAB_ALIGNMENT, WD_PARAGRAPH_ALIGNMENT
-from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
+import docx
+from docx import oxml
+from docx import shared
+from docx.enum import text
+from docx.oxml import ns
 
 from sarif import charts, sarif_file
 from sarif.sarif_file import SarifFileSet
-
-_THIS_MODULE_PATH = os.path.dirname(__file__)
 
 
 def generate_word_docs_from_sarif_inputs(
@@ -59,7 +57,7 @@ def generate_word_docs_from_sarif_inputs(
 def _generate_word_summary(sarif_data, output_file, image_file):
 
     # Create a new document
-    document = Document()
+    document = docx.Document()
 
     _add_heading_and_highlevel_info(document, sarif_data, output_file, image_file)
     _dump_errors_summary_by_sev(document, sarif_data)
@@ -76,7 +74,7 @@ def _add_heading_and_highlevel_info(document, sarif_data, output_file, image_pat
     if image_path:
         document.add_picture(image_path)
         last_paragraph = document.paragraphs[-1]
-        last_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+        last_paragraph.alignment = text.WD_PARAGRAPH_ALIGNMENT.CENTER
 
     document.add_heading(heading, 0)
     document.add_paragraph(f"Document generated on: {datetime.now()}")
@@ -85,12 +83,15 @@ def _add_heading_and_highlevel_info(document, sarif_data, output_file, image_pat
     document.add_paragraph(
         f"Total number of various severities ({sevs}): {sarif_data.get_result_count()}"
     )
+    filter_stats = sarif_data.get_filter_stats()
+    if filter_stats:
+        document.add_paragraph(f"Results were filtered by {filter_stats}.")
 
     pie_chart_image_file_path = output_file.replace(".docx", "_severity_pie_chart.png")
     if charts.generate_severity_pie_chart(sarif_data, pie_chart_image_file_path):
         document.add_picture(pie_chart_image_file_path)
     last_paragraph = document.paragraphs[-1]
-    last_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    last_paragraph.alignment = text.WD_PARAGRAPH_ALIGNMENT.CENTER
 
     document.add_page_break()
 
@@ -151,10 +152,10 @@ def _dump_each_error_in_detail(document, sarif_data):
             table.style = "Table Grid"  # ColorfulGrid-Accent5'
             table.autofit = False
 
-            table.alignment = WD_TAB_ALIGNMENT.CENTER
+            table.alignment = text.WD_TAB_ALIGNMENT.CENTER
 
             # Cell widths
-            widths = [Inches(2), Inches(4), Inches(0.5)]
+            widths = [shared.Inches(2), shared.Inches(4), shared.Inches(0.5)]
 
             # To avoid performance problems with large tables, prepare the entries first in this
             # list, then iterate the table cells and copy them in.
@@ -164,11 +165,15 @@ def _dump_each_error_in_detail(document, sarif_data):
             hdr_cells = table.rows[0].cells
             for i in range(3):
                 table.rows[0].cells[i]._tc.get_or_add_tcPr().append(
-                    parse_xml(r'<w:shd {} w:fill="5fe3d8"/>'.format(nsdecls("w")))
+                    oxml.parse_xml(
+                        r'<w:shd {} w:fill="5fe3d8"/>'.format(ns.nsdecls("w"))
+                    )
                 )
                 run = hdr_cells[i].paragraphs[0].add_run(cells_text[i])
                 run.bold = True
-                hdr_cells[i].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                hdr_cells[i].paragraphs[
+                    0
+                ].alignment = text.WD_PARAGRAPH_ALIGNMENT.CENTER
                 hdr_cells[i].width = widths[i]
 
             for eachrow in sorted_errors_by_severity:

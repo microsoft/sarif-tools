@@ -27,7 +27,6 @@ def generate_html(
     """
     Generate HTML file from the input files.
     """
-    print(_TEMPLATES_PATH)
     date_val = datetime.now()
 
     if image_file:
@@ -104,6 +103,11 @@ def _generate_single_html(
     else:
         chart_image_data_base64 = None
 
+    filtered = None
+    filter_stats = input_file.get_filter_stats()
+    if filter_stats:
+        filtered = f"Results were filtered by {filter_stats}."
+
     template = _ENV.get_template("sarif_summary.html")
     html_content = template.render(
         report_type=", ".join(all_tools),
@@ -114,6 +118,7 @@ def _generate_single_html(
         image_mime_type=image_mime_type,
         image_data_base64=image_data_base64,
         chart_image_data_base64=chart_image_data_base64,
+        filtered=filtered,
     )
 
     with open(output_file, "wt", encoding="utf-8") as file_out:

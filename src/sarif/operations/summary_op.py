@@ -64,4 +64,7 @@ def _generate_summary(input_files: SarifFileSet) -> list[str]:
         result_count = result_count_by_severity.get(severity, 0)
         ret.append(f"\n{severity}: {result_count}")
         ret += [f" - {code}: {count}" for (code, count) in issue_code_histogram]
+    filter_stats = input_files.get_filter_stats()
+    if filter_stats:
+        ret.append(f"\nResults were filtered by {filter_stats}")
     return ret

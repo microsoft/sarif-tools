@@ -58,6 +58,9 @@ def generate_trend_csv(input_files: SarifFileSet, output_file: str, dateformat: 
 
     print("Writing trend CSV to", output_file)
     _write_csv(output_file, error_storage)
+    filter_stats = input_files.get_filter_stats()
+    if filter_stats:
+        print(f"  Results are filtered by {filter_stats}")
 
 
 def _write_csv(output_file: str, error_storage: list[dict]) -> None:
