@@ -9,14 +9,25 @@ Read more about the SARIF format here: https://sarifweb.azurewebsites.net/
 You need Python 3.9 or later installed.  This document assumes that the `python` command runs that version.
 
 ```
-python -m pip install sarif-tools
+pip install sarif-tools
 ```
 
-A script called `sarif` is created in the Python installation's `Scripts` directory.  The `Scripts` directory needs to be in the `PATH`
-environment variable for you to be able to type `sarif` at the command prompt; this is most likely the case if `pip` is run as a
-super-user when installing (e.g. Admin CMD or using `sudo`).
+You should then be able to run:
+```
+sarif --version
+```
 
-If the `Scripts` directory is not in the `PATH`, then you need to run `python -m sarif` instead of `sarif` to run the tool.
+## Troubleshooting installation
+
+This section has suggestions in case the `sarif` command is not available after installation.
+
+A launcher called `sarif` or `sarif.exe` is created in the Python installation's `Scripts` directory.  The `Scripts` directory needs to be in the `PATH`
+environment variable for you to be able to type `sarif` at the command prompt; this is most likely the case if `pip` is run as a
+super-user when installing (e.g. Admin CMD or using `sudo`).  "Admin CMD" here means Command Prompt > Run As Administrator in the Windows Start menu.
+
+If the `Scripts` directory is not in the `PATH`, then you need to type `python -m sarif` instead of `sarif` to run the tool.
+
+Confusion can arise when the `python` and `pip` commands on the `PATH` are from different installations, or the `python` installation on the super-user's `PATH` is different from the `python` command on the normal user's path.  On Windows, you can use `where python` and `where pip` in normal CMD and Admin CMD to see which installations are in use; on Linux, it's `which python` and `which pip` with and without `sudo`.
 
 # Command Line Usage
 
