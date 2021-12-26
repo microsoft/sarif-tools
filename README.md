@@ -6,13 +6,25 @@ Read more about the SARIF format here: https://sarifweb.azurewebsites.net/
 
 # Installation
 
-You need Python 3.9 or later installed.  This document assumes that the `python` command runs that version.
+## Prerequisites
 
+You need Python 3.9 or later installed.  Get it from [python.org](https://www.python.org/downloads/).  This document assumes that the `python` command runs that version.
+
+## Installing on Windows
+
+Open an Admin Command Prompt (Start > Command Prompt > Run as Administrator) and type:
 ```
 pip install sarif-tools
 ```
 
-You should then be able to run:
+## Installing on Linux or Mac
+```
+sudo pip install sarif-tools
+```
+
+## Testing the installation
+
+After installing using `pip`, you should then be able to run:
 ```
 sarif --version
 ```
@@ -23,7 +35,7 @@ This section has suggestions in case the `sarif` command is not available after 
 
 A launcher called `sarif` or `sarif.exe` is created in the Python installation's `Scripts` directory.  The `Scripts` directory needs to be in the `PATH`
 environment variable for you to be able to type `sarif` at the command prompt; this is most likely the case if `pip` is run as a
-super-user when installing (e.g. Admin CMD or using `sudo`).  "Admin CMD" here means Command Prompt > Run As Administrator in the Windows Start menu.
+super-user when installing (e.g. Administrator Command Prompt on Windows, or using `sudo` on Linux).
 
 If the `Scripts` directory is not in the `PATH`, then you need to type `python -m sarif` instead of `sarif` to run the tool.
 
