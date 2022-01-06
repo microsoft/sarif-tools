@@ -91,7 +91,9 @@ Run `sarif <COMMAND> --help` for command-specific help.
             "--output", "-o", type=str, metavar="PATH", help="Output file or directory"
         )
     for cmd in ["diff", "ls", "trend", "usage"]:
-        subparser[cmd].add_argument("--output", "-o", type=str, metavar="FILE", help="Output file")
+        subparser[cmd].add_argument(
+            "--output", "-o", type=str, metavar="FILE", help="Output file"
+        )
 
     for cmd in ["csv", "diff", "html", "summary", "trend", "word"]:
         subparser[cmd].add_argument(
