@@ -6,7 +6,7 @@ files, along with associated functions and constants.
 import copy
 import os
 import re
-from typing import Iterator, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 SARIF_SEVERITIES = ["error", "warning", "note"]
 
@@ -31,7 +31,7 @@ def has_sarif_file_extension(filename):
 
 def _read_result_location(result) -> Tuple[str, str]:
     """
-    Extract the file path and line number (latter as a string) from the Result.
+    Extract the file path and line number strings from the Result.
     Tools store this in different ways, so this function tries a few different JSON locations.
     """
     file_path = None
@@ -63,7 +63,7 @@ def _read_result_location(result) -> Tuple[str, str]:
     return (file_path, line_number)
 
 
-def _group_records_by_severity(records) -> dict[str, list[dict]]:
+def _group_records_by_severity(records) -> Dict[str, List[Dict]]:
     """
     Get the records, grouped by severity.
     """
@@ -73,7 +73,7 @@ def _group_records_by_severity(records) -> dict[str, list[dict]]:
     }
 
 
-def _count_records_by_issue_code(records, severity) -> list[tuple]:
+def _count_records_by_issue_code(records, severity) -> List[Tuple]:
     """
     Return a list of pairs (code, count) of the records with the specified
     severities.
@@ -381,7 +381,7 @@ class SarifRun:
         """
         return self.run_data["tool"]["driver"]["name"]
 
-    def get_results(self) -> list[dict]:
+    def get_results(self) -> List[Dict]:
         """
         Get the results from this run.  These are the Result objects as defined in the SARIF
         standard section 3.27.  The results are filtered if a filter has ben configured.
@@ -389,7 +389,7 @@ class SarifRun:
         """
         return self._filter.filter_results(self.run_data["results"])
 
-    def get_records(self) -> list[dict]:
+    def get_records(self) -> List[Dict]:
         """
         Get simplified records derived from the results of this run.  The records have the
         keys defined in `RECORD_ATTRIBUTES`.
@@ -399,7 +399,7 @@ class SarifRun:
             self._cached_records = [self.result_to_record(result) for result in results]
         return self._cached_records
 
-    def get_records_grouped_by_severity(self) -> dict[str, list[dict]]:
+    def get_records_grouped_by_severity(self) -> Dict[str, List[Dict]]:
         """
         Get the records, grouped by severity.
         """
@@ -454,7 +454,7 @@ class SarifRun:
         """
         return len(self.get_results())
 
-    def get_result_count_by_severity(self) -> dict[str, int]:
+    def get_result_count_by_severity(self) -> Dict[str, int]:
         """
         Return a dict from SARIF severity to number of records.
         """
@@ -464,7 +464,7 @@ class SarifRun:
             for severity in SARIF_SEVERITIES
         }
 
-    def get_issue_code_histogram(self, severity) -> list[tuple]:
+    def get_issue_code_histogram(self, severity) -> List[Tuple]:
         """
         Return a list of pairs (code, count) of the records with the specified
         severities.
@@ -590,7 +590,7 @@ class SarifFile:
         """
         return sorted(list(set(run.get_tool_name() for run in self.runs)))
 
-    def get_results(self) -> list[dict]:
+    def get_results(self) -> List[Dict]:
         """
         Get the results from all runs in this file.  These are the Result objects as defined in the
         SARIF standard section 3.27.
@@ -601,7 +601,7 @@ class SarifFile:
             ret += run.get_results()
         return ret
 
-    def get_records(self) -> list[dict]:
+    def get_records(self) -> List[Dict]:
         """
         Get simplified records derived from the results of all runs.  The records have the
         keys defined in `RECORD_ATTRIBUTES`.
@@ -611,7 +611,7 @@ class SarifFile:
             ret += run.get_records()
         return ret
 
-    def get_records_grouped_by_severity(self) -> dict[str, list[dict]]:
+    def get_records_grouped_by_severity(self) -> Dict[str, List[Dict]]:
         """
         Get the records, grouped by severity.
         """
@@ -623,7 +623,7 @@ class SarifFile:
         """
         return sum(run.get_result_count() for run in self.runs)
 
-    def get_result_count_by_severity(self) -> dict[str, int]:
+    def get_result_count_by_severity(self) -> Dict[str, int]:
         """
         Return a dict from SARIF severity to number of records.
         """
@@ -637,7 +637,7 @@ class SarifFile:
             for severity in SARIF_SEVERITIES
         }
 
-    def get_issue_code_histogram(self, severity) -> list[tuple]:
+    def get_issue_code_histogram(self, severity) -> List[Tuple]:
         """
         Return a list of pairs (code, count) of the records with the specified
         severities.
@@ -783,7 +783,7 @@ class SarifFileSet:
         """
         self.files.append(sarif_file_object)
 
-    def get_distinct_tool_names(self) -> list[str]:
+    def get_distinct_tool_names(self) -> List[str]:
         """
         Return a list of tool names that feature in the runs in these files.
         The list is deduplicated and sorted into alphabetical order.
@@ -796,7 +796,7 @@ class SarifFileSet:
 
         return sorted(list(all_tool_names))
 
-    def get_results(self) -> list[dict]:
+    def get_results(self) -> List[Dict]:
         """
         Get the results from all runs in all files.  These are the Result objects as defined in the
         SARIF standard section 3.27.
@@ -809,7 +809,7 @@ class SarifFileSet:
             ret += input_file.get_results()
         return ret
 
-    def get_records(self) -> list[dict]:
+    def get_records(self) -> List[Dict]:
         """
         Get simplified records derived from the results of all runs.  The records have the
         keys defined in `RECORD_ATTRIBUTES`.
@@ -821,7 +821,7 @@ class SarifFileSet:
             ret += input_file.get_records()
         return ret
 
-    def get_records_grouped_by_severity(self) -> dict[str, list[dict]]:
+    def get_records_grouped_by_severity(self) -> Dict[str, List[Dict]]:
         """
         Get the records, grouped by severity.
         """
@@ -835,7 +835,7 @@ class SarifFileSet:
             input_file.get_result_count() for input_file in self.files
         )
 
-    def get_result_count_by_severity(self) -> dict[str, int]:
+    def get_result_count_by_severity(self) -> Dict[str, int]:
         """
         Return a dict from SARIF severity to number of records.
         """
@@ -849,7 +849,7 @@ class SarifFileSet:
             for severity in SARIF_SEVERITIES
         }
 
-    def get_issue_code_histogram(self, severity) -> list[tuple]:
+    def get_issue_code_histogram(self, severity) -> List[Tuple]:
         """
         Return a list of pairs (code, count) of the records with the specified
         severities.

@@ -26,7 +26,8 @@ Pull requests are welcome.
 
 ## Prerequisites
 
-You need Python 3.9 or later installed.
+- You need Python 3.8 installed.
+  - This is the minimum supported version of the tool.  Developing with a later version risks introducing type hints such as `list[dict]` that are not compatible with Python 3.8.
 
 ## Running without installing
 

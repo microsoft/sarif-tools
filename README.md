@@ -8,7 +8,7 @@ Read more about the SARIF format here: https://sarifweb.azurewebsites.net/
 
 ## Prerequisites
 
-You need Python 3.9 or later installed.  Get it from [python.org](https://www.python.org/downloads/).  This document assumes that the `python` command runs that version.
+You need Python 3.8 or later installed.  Get it from [python.org](https://www.python.org/downloads/).  This document assumes that the `python` command runs that version.
 
 ## Installing on Windows
 
@@ -84,16 +84,16 @@ The commands are illustrated below assuming input files in the following locatio
 
 ### blame
 ```
-usage: sarif blame [-h] [--output OUTPUT] [--code CODE] [file_or_dir ...]
+usage: sarif blame [-h] [--output PATH] [--code PATH] [file_or_dir [file_or_dir ...]]
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output PATH, -o PATH
                         Output file or directory
-  --code CODE, -c CODE  Path to git repository; if not specified, the current working directory is used
+  --code PATH, -c PATH  Path to git repository; if not specified, the current working directory is used
 ```
 
 Augment SARIF files with `git blame` information, and write the augmented files to a specified location.
@@ -108,14 +108,14 @@ See [Blame filtering](blame-filtering) below for the format of the blame informa
 ### csv
 
 ```
-usage: sarif csv [-h] [--output OUTPUT] [--blame-filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir ...]
+usage: sarif csv [-h] [--output PATH] [--blame-filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output PATH, -o PATH
                         Output file or directory
   --blame-filter FILE, -b FILE
                         Specify the blame filter file to apply. See README for format.
@@ -142,7 +142,7 @@ See [Blame filtering](blame-filtering) below for how to use the `--blame-filter`
 ### diff
 
 ```
-usage: sarif diff [-h] [--output OUTPUT] [--blame-filter FILE] old_file_or_dir new_file_or_dir
+usage: sarif diff [-h] [--output FILE] [--blame-filter FILE] old_file_or_dir new_file_or_dir
 
 positional arguments:
   old_file_or_dir       An old SARIF file or a directory containing the old SARIF files
@@ -150,7 +150,7 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output FILE, -o FILE
                         Output file
   --blame-filter FILE, -b FILE
                         Specify the blame filter file to apply. See README for format.
@@ -179,14 +179,14 @@ See [Blame filtering](blame-filtering) below for how to use the `--blame-filter`
 ### html
 
 ```
-usage: sarif html [-h] [--output OUTPUT] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir ...]
+usage: sarif html [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output PATH, -o PATH
                         Output file or directory
   --blame-filter FILE, -b FILE
                         Specify the blame filter file to apply. See README for format.
@@ -210,14 +210,14 @@ See [Blame filtering](blame-filtering) below for how to use the `--blame-filter`
 ### ls
 
 ```
-usage: sarif ls [-h] [--output OUTPUT] [file_or_dir ...]
+usage: sarif ls [-h] [--output FILE] [file_or_dir [file_or_dir ...]]
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output FILE, -o FILE
                         Output file
 ```
 
@@ -230,14 +230,14 @@ sarif ls "C:\temp\sarif_files" "C:\temp\sarif_with_date"
 ### summary
 
 ```
-usage: sarif summary [-h] [--output OUTPUT] [--blame-filter FILE] [file_or_dir ...]
+usage: sarif summary [-h] [--output PATH] [--blame-filter FILE] [file_or_dir [file_or_dir ...]]
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output PATH, -o PATH
                         Output file or directory
   --blame-filter FILE, -b FILE
                         Specify the blame filter file to apply. See README for format.
@@ -262,14 +262,14 @@ See [Blame filtering](blame-filtering) below for how to use the `--blame-filter`
 ### trend
 
 ```
-usage: sarif trend [-h] [--output OUTPUT] [--blame-filter FILE] [--dateformat {dmy,mdy,ymd}] [file_or_dir ...]
+usage: sarif trend [-h] [--output FILE] [--blame-filter FILE] [--dateformat {dmy,mdy,ymd}] [file_or_dir [file_or_dir ...]]
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output FILE, -o FILE
                         Output file
   --blame-filter FILE, -b FILE
                         Specify the blame filter file to apply. See README for format.
@@ -299,14 +299,14 @@ sarif usage
 ### word
 
 ```
-usage: sarif word [-h] [--output OUTPUT] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir ...]
+usage: sarif word [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output OUTPUT, -o OUTPUT
+  --output PATH, -o PATH
                         Output file or directory
   --blame-filter FILE, -b FILE
                         Specify the blame filter file to apply. See README for format.
@@ -378,19 +378,19 @@ description: Example filter from README.md
 +: /^<myname.*\.com>$/
 # Again, the "+: " can be omitted for a regular expression include pattern.
 /^<myname.*\.com>$/
-# Lines beginning with "-: " are interpreted as exclusion substrings.  E.g. the following line excludes issues whose author-mail field contains "@microsoft.com".
--: @bad.microsoft.com
+# Lines beginning with "-: " are interpreted as exclusion substrings.  E.g. the following line excludes issues whose author-mail field contains "bot@microsoft.com".
+-: bot@microsoft.com
 # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are excluded.  Use ^ and $ to match the whole author-mail field.  E.g. the following pattern excludes all issues whose author-mail field contains a GUID.
 -: /[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/
 ```
 
-Or, without the comments and alternative forms:
+Here's an example of a filter-file that includes issues on lines changed by an `@microsoft.com` email address or a `myname.SOMETHING.com` email address, but not if those email addresses end in `bot@microsoft.com` or contain a GUID.  It's the same as the above example, with comments stripped out.
 
 ```
 description: Example filter from README.md
 +: @microsoft.com
 +: /^<myname.*\.com>$/
--: @bad.microsoft.com
+-: bot@microsoft.com
 -: /[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/
 ```
 
