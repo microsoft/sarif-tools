@@ -2,10 +2,12 @@
 Code for `sarif ls` command.
 """
 
+from typing import List
+
 from sarif import loader
 
 
-def print_ls(files_or_dirs: list[str], output):
+def print_ls(files_or_dirs: List[str], output):
     """
     Print a SARIF file listing for each of the input files or directories.
     """

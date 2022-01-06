@@ -3,6 +3,7 @@ Code for `sarif trend` command.
 """
 
 import csv
+from typing import Dict, List
 
 from sarif import sarif_file
 from sarif.sarif_file import SarifFileSet
@@ -58,9 +59,12 @@ def generate_trend_csv(input_files: SarifFileSet, output_file: str, dateformat: 
 
     print("Writing trend CSV to", output_file)
     _write_csv(output_file, error_storage)
+    filter_stats = input_files.get_filter_stats()
+    if filter_stats:
+        print(f"  Results are filtered by {filter_stats}")
 
 
-def _write_csv(output_file: str, error_storage: list[dict]) -> None:
+def _write_csv(output_file: str, error_storage: List[Dict]) -> None:
     # newline="" to avoid \r\r\n - see https://stackoverflow.com/a/3191811/316578
     with open(output_file, "w", newline="", encoding="utf-8") as file_out:
         writer = csv.DictWriter(file_out, TIMESTAMP_COLUMNS, extrasaction="ignore")
@@ -69,7 +73,7 @@ def _write_csv(output_file: str, error_storage: list[dict]) -> None:
             writer.writerow(key)
 
 
-def _store_errors(timestamp, excel_date, tool: str, list_of_errors: list[dict]) -> dict:
+def _store_errors(timestamp, excel_date, tool: str, list_of_errors: List[Dict]) -> Dict:
     results = {
         "_timestamp": timestamp,  # not written to CSV, but used for sorting
         "Date": excel_date,

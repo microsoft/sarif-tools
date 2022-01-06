@@ -3,6 +3,7 @@ Code for `sarif summary` command.
 """
 
 import os
+from typing import List
 
 from sarif import sarif_file
 from sarif.sarif_file import SarifFileSet
@@ -51,7 +52,7 @@ def generate_summary(
             print(lstr)
 
 
-def _generate_summary(input_files: SarifFileSet) -> list[str]:
+def _generate_summary(input_files: SarifFileSet) -> List[str]:
     """
     For each severity level (in priority order): create a list of the errors of
     that severity, print out how many there are and then do some further analysis
@@ -64,4 +65,7 @@ def _generate_summary(input_files: SarifFileSet) -> list[str]:
         result_count = result_count_by_severity.get(severity, 0)
         ret.append(f"\n{severity}: {result_count}")
         ret += [f" - {code}: {count}" for (code, count) in issue_code_histogram]
+    filter_stats = input_files.get_filter_stats()
+    if filter_stats:
+        ret.append(f"\nResults were filtered by {filter_stats}")
     return ret

@@ -89,7 +89,10 @@
 
 <h3>Sarif Summary: <b>{{ report_type }}</b></h3>
 <h4>Document generated on: <b>{{ report_date }}</b></h4>
-<h4>Total number of various severities ({{ severities }}): <b>{{ total }}</b></h4>
+<h4>Total number of distinct issues of all severities ({{ severities }}): <b>{{ total }}</b></h4>
+{% if filtered -%}
+<p>{{ filtered }}</p>
+{%- endif %}
 
 {% if chart_image_data_base64 -%}
 <img src="data:image/png;base64,{{ chart_image_data_base64 }}" role="img" aria-label="Pie chart" />

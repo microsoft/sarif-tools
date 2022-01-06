@@ -86,12 +86,23 @@ Run `sarif <COMMAND> --help` for command-specific help.
         + "(or for diff, an increase in issues at that level).",
     )
 
-    for cmd in ["blame", "csv", "summary", "html", "word"]:
+    for cmd in ["blame", "csv", "html", "summary", "word"]:
         subparser[cmd].add_argument(
-            "--output", "-o", type=str, help="Output file or directory"
+            "--output", "-o", type=str, metavar="PATH", help="Output file or directory"
         )
     for cmd in ["diff", "ls", "trend", "usage"]:
-        subparser[cmd].add_argument("--output", "-o", type=str, help="Output file")
+        subparser[cmd].add_argument(
+            "--output", "-o", type=str, metavar="FILE", help="Output file"
+        )
+
+    for cmd in ["csv", "diff", "html", "summary", "trend", "word"]:
+        subparser[cmd].add_argument(
+            "--blame-filter",
+            "-b",
+            type=str,
+            metavar="FILE",
+            help="Specify the blame filter file to apply.  See README for format.",
+        )
 
     # Command-specific options
     subparser["blame"].add_argument(
@@ -114,11 +125,10 @@ Run `sarif <COMMAND> --help` for command-specific help.
             "--no-autotrim",
             "-n",
             action="store_true",
-            help="Do not strip off the common prefix of paths in the CSV output",
+            help="Do not strip off the common prefix of paths in the output document",
         )
         subparser[cmd].add_argument(
             "--image",
-            "-i",
             type=str,
             help="Image to include at top of file - SARIF logo by default",
         )
@@ -139,6 +149,7 @@ Run `sarif <COMMAND> --help` for command-specific help.
                 metavar="file_or_dir",
                 type=str,
                 nargs="*",
+                default=["."],
                 help="A SARIF file or a directory containing SARIF files",
             )
     subparser["diff"].add_argument(
@@ -185,6 +196,69 @@ def _check(input_files: sarif_file.SarifFileSet, check_level):
             f"Check: exiting with return code {ret} due to issues at or above {check_level} severity\n"
         )
     return ret
+
+
+def _load_blame_filter_file(file_path):
+    filter_description = os.path.basename(file_path)
+    include_substrings = []
+    include_regexps = []
+    exclude_substrings = []
+    exclude_regexps = []
+    try:
+        with open(file_path, encoding="utf-8") as file_in:
+            for line in file_in.readlines():
+                if line.startswith("\ufeff"):
+                    # Strip byte order mark
+                    line = line[1:]
+                lstrip = line.strip()
+                if lstrip.startswith("#"):
+                    # Ignore comment lines
+                    continue
+                pattern_spec = None
+                is_include = True
+                if lstrip.startswith("description:"):
+                    filter_description = lstrip[12:].strip()
+                    print("Descrtiption is now " + filter_description)
+                elif lstrip.startswith("+: "):
+                    is_include = True
+                    pattern_spec = lstrip[3:].strip()
+                elif lstrip.startswith("-: "):
+                    is_include = False
+                    pattern_spec = lstrip[3:].strip()
+                else:
+                    is_include = True
+                    pattern_spec = lstrip
+                if pattern_spec:
+                    pattern_spec_len = len(pattern_spec)
+                    if (
+                        pattern_spec_len > 2
+                        and pattern_spec.startswith("/")
+                        and pattern_spec.endswith("/")
+                    ):
+                        (include_regexps if is_include else exclude_regexps).append(
+                            pattern_spec[1 : pattern_spec_len - 1]
+                        )
+                    else:
+                        (
+                            include_substrings if is_include else exclude_substrings
+                        ).append(pattern_spec)
+    except UnicodeDecodeError as error:
+        raise IOError(
+            f"Cannot read blame filter file {file_path}: not UTF-8 encoded?"
+        ) from error
+    return (
+        filter_description,
+        include_substrings,
+        include_regexps,
+        exclude_substrings,
+        exclude_regexps,
+    )
+
+
+def _init_blame_filtering(input_files, args):
+    if args.blame_filter:
+        filters = _load_blame_filter_file(args.blame_filter)
+        input_files.init_blame_filter(*filters)
 
 
 def _init_path_prefix_stripping(input_files, args, strip_by_default):
@@ -242,6 +316,9 @@ def _prepare_output(
     return (os.getcwd(), True)
 
 
+####################################### Command handlers #######################################
+
+
 def _blame(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".sarif")
@@ -251,9 +328,29 @@ def _blame(args):
     return _check(input_files, args.check)
 
 
+def _csv(args):
+    input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
+    _init_path_prefix_stripping(input_files, args, strip_by_default=False)
+    _init_blame_filtering(input_files, args)
+    (output, multiple_file_output) = _prepare_output(input_files, args.output, ".csv")
+    csv_op.generate_csv(input_files, output, multiple_file_output)
+    return _check(input_files, args.check)
+
+
+def _diff(args):
+    original_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
+    new_sarif = loader.load_sarif_files(args.new_file_or_dir[0])
+    _init_blame_filtering(original_sarif, args)
+    _init_blame_filtering(new_sarif, args)
+    return diff_op.print_diff(original_sarif, new_sarif, args.output, args.check)
+
+
 def _html(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
+    _init_blame_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".html")
     html_op.generate_html(input_files, args.image, output, multiple_file_output)
     return _check(input_files, args.check)
@@ -267,22 +364,9 @@ def _ls(args):
     return 0
 
 
-def _csv(args):
-    input_files = loader.load_sarif_files(*args.files_or_dirs)
-    _init_path_prefix_stripping(input_files, args, strip_by_default=False)
-    (output, multiple_file_output) = _prepare_output(input_files, args.output, ".csv")
-    csv_op.generate_csv(input_files, output, multiple_file_output)
-    return _check(input_files, args.check)
-
-
-def _diff(args):
-    original_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
-    new_sarif = loader.load_sarif_files(args.new_file_or_dir[0])
-    return diff_op.print_diff(original_sarif, new_sarif, args.output, args.check)
-
-
 def _summary(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    _init_blame_filtering(input_files, args)
     (output, multiple_file_output) = (None, False)
     if args.output:
         (output, multiple_file_output) = _prepare_output(
@@ -294,6 +378,8 @@ def _summary(args):
 
 def _trend(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
+    _init_blame_filtering(input_files, args)
     if args.output:
         _ensure_dir(os.path.dirname(args.output))
         output = args.output
@@ -318,7 +404,9 @@ def _usage(args):
 
 def _word(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
+    _init_blame_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".docx")
     word_op.generate_word_docs_from_sarif_inputs(
         input_files, args.image, output, multiple_file_output

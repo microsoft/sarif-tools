@@ -4,6 +4,7 @@ Code for `sarif diff` command.
 
 import json
 import sys
+from typing import Dict
 
 from sarif.sarif_file import SarifFileSet, SARIF_SEVERITIES
 
@@ -56,6 +57,12 @@ def print_diff(
             _signed_change(diff["all"]["+"]),
             _signed_change(-diff["all"]["-"]),
         )
+    filter_stats = original_sarif.get_filter_stats()
+    if filter_stats:
+        print(f"  'Before' results were filtered by {filter_stats}")
+    filter_stats = new_sarif.get_filter_stats()
+    if filter_stats:
+        print(f"  'After' results were filtered by {filter_stats}")
     ret = 0
     if check_level:
         for severity in SARIF_SEVERITIES:
@@ -69,7 +76,7 @@ def print_diff(
     return ret
 
 
-def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> dict:
+def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> Dict:
     """
     Generate a diff of the issues from the SARIF files.
     original_sarif corresponds to the old files.
