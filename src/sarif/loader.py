@@ -2,10 +2,21 @@
 Code to load SARIF files from disk.
 """
 
+import glob
 import json
 import os
 
 from sarif.sarif_file import has_sarif_file_extension, SarifFile, SarifFileSet
+
+
+def _add_path_to_sarif_file_set(path, sarif_file_set):
+    if os.path.isdir(path):
+        sarif_file_set.add_dir(_load_dir(path))
+        return True
+    if os.path.isfile(path):
+        sarif_file_set.add_file(load_sarif_file(path))
+        return True
+    return False
 
 
 def load_sarif_files(*args) -> SarifFileSet:
@@ -16,10 +27,13 @@ def load_sarif_files(*args) -> SarifFileSet:
     ret = SarifFileSet()
     if args:
         for path in args:
-            if os.path.isdir(path):
-                ret.add_dir(_load_dir(path))
-            elif os.path.isfile(path):
-                ret.add_file(load_sarif_file(path))
+            path_exists = _add_path_to_sarif_file_set(path, ret)
+            if not path_exists:
+                for resolved_path in glob.glob(path):
+                    if _add_path_to_sarif_file_set(resolved_path, ret):
+                        path_exists = True
+            if not path_exists:
+                print(f"Warning: path {path} not found")
     return ret
 
 
@@ -38,6 +52,9 @@ def load_sarif_file(file_path: str) -> SarifFile:
     As per https://tools.ietf.org/id/draft-ietf-json-rfc4627bis-09.html#rfc.section.8.1, JSON
     data SHALL be encoded in utf-8.
     """
-    with open(file_path, encoding="utf-8") as file_in:
-        data = json.load(file_in)
-    return SarifFile(file_path, data)
+    try:
+        with open(file_path, encoding="utf-8") as file_in:
+            data = json.load(file_in)
+        return SarifFile(file_path, data)
+    except Exception as exception:
+        raise IOError(f"Cannot load {file_path}") from exception
