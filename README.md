@@ -163,7 +163,7 @@ optional arguments:
                         Specify the blame filter file to apply. See README for format.
   --autotrim, -a        Strip off the common prefix of paths in the CSV output
   --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
-  ```
+```
 
 Write out a simple tabular list of issues from [a set of] SARIF files.  This can then be analysed, e.g. via Pivot Tables in Excel.
 
