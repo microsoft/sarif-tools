@@ -28,6 +28,8 @@ Pull requests are welcome.
 
 - You need Python 3.8 installed.
   - This is the minimum supported version of the tool.  Developing with a later version risks introducing type hints such as `list[dict]` that are not compatible with Python 3.8.
+- You need Poetry installed.  Run this in an Admin CMD or under `sudo`:
+  - `pip install poetry`
 
 Initialise Poetry by telling it where Python 3.8 is, e.g.
 
