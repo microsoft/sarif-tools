@@ -255,7 +255,9 @@ class _BlameFilter:
 
         Note that if init_blame_filter is called, these rehydrated stats are discarded.
         """
-        self.filter_stats = load_filter_stats_from_json_camel_case(dehydrated_filter_stats)
+        self.filter_stats = load_filter_stats_from_json_camel_case(
+            dehydrated_filter_stats
+        )
         self.filter_stats.filter_datetime = filter_datetime
 
     def _zero_counts(self):
@@ -388,7 +390,9 @@ class SarifRun:
                     filter_date = conversion_driver["properties"].get("processed", None)
                     self._filter.rehydrate_filter_stats(
                         dehydrated_filter_stats,
-                        datetime.datetime.fromisoformat(filter_date) if filter_date else None
+                        datetime.datetime.fromisoformat(filter_date)
+                        if filter_date
+                        else None,
                     )
 
     def init_path_prefix_stripping(self, autotrim=False, path_prefixes=None):
