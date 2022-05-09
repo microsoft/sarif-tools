@@ -1,6 +1,36 @@
-[build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
+[tool.poetry]
+name = "sarif-tools"
+version = "1.0.0"
+description = "SARIF tools"
+authors = ["Microsoft"]
+readme = "README.md"
+homepage = "https://github.com/microsoft/sarif-tools"
+packages = [
+    { include = "sarif" }
 ]
-build-backend = "setuptools.build_meta"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/microsoft/sarif-tools/issues"
+
+[tool.poetry.dependencies]
+jinja2 = "3.1.2"
+python = "^3.8"
+python-docx = "0.8.11"
+matplotlib = "3.5.1"
+
+[tool.poetry.dev-dependencies]
+black = "^22.3.0"
+pylint = "^2.13.8"
+pytest = "^5.2"
+
+[tool.poetry.scripts]
+sarif = "sarif.cmdline.main:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

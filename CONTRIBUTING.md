@@ -18,8 +18,8 @@ or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any addi
 Pull requests are welcome.
 1. Fork the repository.
 2. Make and test your changes (see Developer Guide below).
-3. Run `python -m black .` to format the code (`python -m pip install black` if necessary).
-4. Run `python -m pylint src` and check for no new errors or warnings (`python -m pip install pylint` if necessary).
+3. Run `poetry run black sarif` to format the code.
+4. Run `poetry run pylint sarif` and check for no new errors or warnings.
 5. Raise Pull Request in GitHub.com.
 
 # Developer Guide
@@ -29,41 +29,58 @@ Pull requests are welcome.
 - You need Python 3.8 installed.
   - This is the minimum supported version of the tool.  Developing with a later version risks introducing type hints such as `list[dict]` that are not compatible with Python 3.8.
 
-## Running without installing
+Initialise Poetry by telling it where Python 3.8 is, e.g.
 
-Use `run.py`.  E.g.
 ```
-python run.py ls "C:\temp\sarif_files"
+# Windows - adjust to the path where you have installed Python 3.8.
+poetry env use "C:\Python38\python.exe"
+# Linux
+poetry env use 3.8
 ```
 
-## Package using `build`
+## Running locally in Poetry virtualenv
 
-Install the [build](https://pypi.org/project/build/) package:
 ```
-python -m pip install --upgrade build
+poetry install
+poetry run python --version
+poetry run sarif --version
+poetry run python -m sarif --version
 ```
+
+To see what executable is being run:
+```
+# Windows
+poetry run cmd /c "where sarif"
+# Linux
+poetry run which sarif
+```
+
+## Run unit tests
+```
+poetry run pytest
+```
+
+## Package using `poetry build`
 
 Run it on the source code:
 ```
-python -m build
+poetry build
 ```
 
-Install the package built by `build` locally:
+If you want, you can install the package built locally at system level (outside the Poetry virtual environment):
 ```
-python -m pip install dist/sarif-*.whl
+pip install dist/sarif-*.whl
 ```
 
-## Install locally using `setuptools`
-
-Run this in the base directory:
+To remove it again:
 ```
-python -m pip install .
+pip uninstall sarif-tools
 ```
-`pip` uses a small shim `setup.py` to invoke `setuptools`.  Then `setuptools` installs all runtime requirements and also installs `sarif`.
 
 Note that there are two possible levels of installation:
 
 ### User installation
+
 When you run `pip install` and `pip` doesn't have permissions to write to the Python installation's `site-packages` directory, probably because you are not running as an admin/superuser, the package is installed at "user" level only.  You can run it using:
 ```
 python -m sarif
@@ -81,28 +98,15 @@ When you run `pip install` and `pip` has permissions to write to the Python inst
 sarif
 ```
 
-## Running locally-installed sarif-tools
-
-Run the installed package using the `python -m sarif` command:
-```
-python -m sarif ls "C:\temp\sarif_files"
-```
-If installed at system level, you can alternatively run the installed package using the `sarif command`.
-```
-sarif ls "C:\temp\sarif_files"
-```
-
 ## Adding packages from pypi to the project
 
-Add the package and its version to `install_requires` in `setup.cfg`.
+Add the package and its _specific_ version to `[tool.poetry.dependencies]` in `pyproject.toml`.
 
-Then run this in the base directory to install the tool and all its requirements locally:
+Then run this to update Poetry's lockfile.
 ```
-pip install .
+poetry update
 ```
-
-You can also run `pip install <packagename>` before or after this, as you wish.  But you need to add the dependency to `setup.cfg` to make sure that the packaged application depends on this dependency when other people install it.
 
 ## Adding resource files to the project
 
-Add the glob to `MANIFEST.in`.  This is read because `include_package_data` in `setup.cfg` is `True`.
+Add the file within the `sarif` directory and it will be installed with the Python source.  For example, `sarif/operations/templates/sarif_summary.html`.
