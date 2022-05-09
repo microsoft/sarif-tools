@@ -2,5 +2,6 @@
 /dist
 *.egg-info
 *.pyc
+*.orig
 /.venv
 /.vscode

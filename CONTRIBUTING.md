@@ -38,10 +38,17 @@ poetry env use "C:\Python38\python.exe"
 poetry env use 3.8
 ```
 
+This is not necessary if your system Python version is 3.8.
+
 ## Running locally in Poetry virtualenv
 
 ```
 poetry install
+poetry run sarif <OPTIONS>
+```
+
+To check that the right versions are being run:
+```
 poetry run python --version
 poetry run sarif --version
 poetry run python -m sarif --version
@@ -54,6 +61,16 @@ poetry run cmd /c "where sarif"
 # Linux
 poetry run which sarif
 ```
+
+## Update dependency versions
+
+Run `poetry update` to bump package versions in the `poetry.lock` file.
+
+## Update product version
+
+Change the `version = ` line in `pyproject.toml` for the new semantic version for your change.
+
+To make sure you're paying attention, you need to change it in the test `test_version.py` as well.
 
 ## Run unit tests
 ```
@@ -100,7 +117,7 @@ sarif
 
 ## Adding packages from pypi to the project
 
-Add the package and its _specific_ version to `[tool.poetry.dependencies]` in `pyproject.toml`.
+Add the package and its latest version number (as minimum version) to `[tool.poetry.dependencies]` in `pyproject.toml`.
 
 Then run this to update Poetry's lockfile.
 ```
