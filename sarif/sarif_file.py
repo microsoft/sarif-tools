@@ -547,7 +547,14 @@ class SarifRun:
         severity = result.get(
             "level", "warning"
         )  # If an error has no specified level then by default it is a warning
-        message = result["message"]["text"]
+        
+        #per RFC3629 At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629
+        if "text" in result["message"]:
+            message = result["message"]["text"]
+        elif "id" in result["message"]:
+            message = result["message"]["id"]
+        else:
+            raise Exception("Message for result " + error_id + " from tool " + tool_name + " do not comply with RFC3629. At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629")
 
         # Create a dict representing this result
         record = {
