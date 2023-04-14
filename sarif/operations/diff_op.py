@@ -96,6 +96,7 @@ def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> Dict:
                     ret[severity]["codes"].append((issue_code, old_count, count))
                     if old_count == 0:
                         ret[severity]["+"] += 1
+            original_histogram = dict(original_sarif.get_issue_code_histogram(severity))
             for (issue_code, old_count) in original_histogram.items():
                 ret[severity]["codes"].append((issue_code, old_count, 0))
                 ret[severity]["-"] += 1
