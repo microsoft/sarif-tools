@@ -15,6 +15,7 @@ from sarif.operations import (
     csv_op,
     diff_op,
     html_op,
+    emacs_op,
     info_op,
     ls_op,
     summary_op,
@@ -81,7 +82,7 @@ def _create_arg_parser():
         + "(or for diff, an increase in issues at that level).",
     )
 
-    for cmd in ["blame", "csv", "html", "summary", "word"]:
+    for cmd in ["blame", "csv", "html", "emacs", "summary", "word"]:
         subparser[cmd].add_argument(
             "--output", "-o", type=str, metavar="PATH", help="Output file or directory"
         )
@@ -90,7 +91,7 @@ def _create_arg_parser():
             "--output", "-o", type=str, metavar="FILE", help="Output file"
         )
 
-    for cmd in ["copy", "csv", "diff", "summary", "html", "trend", "word"]:
+    for cmd in ["copy", "csv", "diff", "summary", "html", "emacs", "trend", "word"]:
         subparser[cmd].add_argument(
             "--blame-filter",
             "-b",
@@ -122,7 +123,7 @@ def _create_arg_parser():
         help="Strip off the common prefix of paths in the CSV output",
     )
     # word and html default to trimming
-    for cmd in ["html", "word"]:
+    for cmd in ["html", "emacs", "word"]:
         subparser[cmd].add_argument(
             "--no-autotrim",
             "-n",
@@ -135,7 +136,7 @@ def _create_arg_parser():
             help="Image to include at top of file - SARIF logo by default",
         )
     # csv, html and word allow trimmable paths to be specified
-    for cmd in ["csv", "word", "html"]:
+    for cmd in ["csv", "word", "html", "emacs"]:
         subparser[cmd].add_argument(
             "--trim",
             metavar="PREFIX",
@@ -371,6 +372,15 @@ def _html(args):
     html_op.generate_html(input_files, args.image, output, multiple_file_output)
     return _check(input_files, args.check)
 
+def _emacs(args):
+    input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
+    _init_path_prefix_stripping(input_files, args, strip_by_default=True)
+    _init_blame_filtering(input_files, args)
+    (output, multiple_file_output) = _prepare_output(input_files, args.output, ".txt")
+    emacs_op.generate_compile(input_files, output)
+    return _check(input_files, args.check)
+
 
 def _info(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
@@ -458,6 +468,10 @@ _COMMANDS = {
     "html": {
         "fn": _html,
         "desc": "Write an HTML representation of SARIF file(s) for viewing in a web browser",
+    },
+    "emacs": {
+        "fn": _emacs,
+        "desc": "Write a representation of SARIF file(s) for viewing in emacs",
     },
     "info": {"fn": _info, "desc": "Print information about SARIF file(s) structure"},
     "ls": {"fn": _ls, "desc": "List all SARIF files in the directories specified"},
