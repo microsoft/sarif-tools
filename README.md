@@ -4,33 +4,35 @@ A set of command line tools and Python library for working with SARIF files.
 
 Read more about the SARIF format here: https://sarifweb.azurewebsites.net/
 
-# Installation
+## Installation
 
-## Prerequisites
+### Prerequisites
 
 You need Python 3.8 or later installed.  Get it from [python.org](https://www.python.org/downloads/).  This document assumes that the `python` command runs that version.
 
-## Installing on Windows
+### Installing on Windows
 
 Open an Admin Command Prompt (Start > Command Prompt > Run as Administrator) and type:
-```
+
+```cmd
 pip install sarif-tools
 ```
 
-## Installing on Linux or Mac
+### Installing on Linux or Mac
 
-```
+```bash
 sudo pip install sarif-tools
 ```
 
-## Testing the installation
+### Testing the installation
 
 After installing using `pip`, you should then be able to run:
-```
+
+```bash
 sarif --version
 ```
 
-## Troubleshooting installation
+### Troubleshooting installation
 
 This section has suggestions in case the `sarif` command is not available after installation.
 
@@ -42,15 +44,15 @@ If the `Scripts` directory is not in the `PATH`, then you need to type `python -
 
 Confusion can arise when the `python` and `pip` commands on the `PATH` are from different installations, or the `python` installation on the super-user's `PATH` is different from the `python` command on the normal user's path.  On Windows, you can use `where python` and `where pip` in normal CMD and Admin CMD to see which installations are in use; on Linux, it's `which python` and `which pip` with and without `sudo`.
 
-# Command Line Usage
+## Command Line Usage
 
-```
-usage: sarif [-h] [--version] [--debug] [--check {error,warning,note}] {blame,copy,csv,diff,html,info,ls,summary,trend,usage,word} ...
+```plain
+usage: sarif [-h] [--version] [--debug] [--check {error,warning,note}] {blame,copy,csv,diff,emacs,html,info,ls,summary,trend,usage,word} ...
 
 Process sets of SARIF files
 
 positional arguments:
-  {blame,copy,csv,diff,html,info,ls,summary,trend,usage,word}
+  {blame,copy,csv,diff,emacs,html,info,ls,summary,trend,usage,word}
                         command
 
 optional arguments:
@@ -65,6 +67,7 @@ blame    Enhance SARIF file with information from `git blame`
 copy     Write a new SARIF file containing optionally-filtered data from other SARIF file(s)
 csv      Write a CSV file listing the issues from the SARIF files(s) specified
 diff     Find the difference between two [sets of] SARIF files
+emacs    Write a representation of SARIF file(s) for viewing in emacs
 html     Write an HTML representation of SARIF file(s) for viewing in a web browser
 info     Print information about SARIF file(s) structure
 ls       List all SARIF files in the directories specified
@@ -75,7 +78,7 @@ word     Produce MS Word .docx summaries of the SARIF files specified
 Run `sarif <COMMAND> --help` for command-specific help.
 ```
 
-## Commands
+### Commands
 
 The commands are illustrated below assuming input files in the following locations:
 
@@ -84,8 +87,9 @@ The commands are illustrated below assuming input files in the following locatio
 - `C:\temp\old_sarif_files` = a directory of SARIF files with arbitrary filenames from an older build.
 - `C:\code\my_source_repo` = checkout directory of source code files from which SARIF results were obtained.
 
-### blame
-```
+#### blame
+
+```plain
 usage: sarif blame [-h] [--output PATH] [--code PATH] [file_or_dir [file_or_dir ...]]
 
 Enhance SARIF file with information from `git blame`
@@ -101,6 +105,7 @@ optional arguments:
 ```
 
 Augment SARIF files with `git blame` information, and write the augmented files to a specified location.
+
 ```shell
 sarif blame -o "C:\temp\sarif_files_with_blame_info" -c "C:\code\my_source_repo" "C:\temp\sarif_files"
 ```
@@ -109,9 +114,9 @@ If the current working directory is the git repository, the `-c` argument can be
 
 See [Blame filtering](blame-filtering) below for the format of the blame information that gets added to the SARIF files.
 
-### copy
+#### copy
 
-```
+```plain
 usage: sarif copy [-h] [--output FILE] [--blame-filter FILE] [--timestamp] [file_or_dir [file_or_dir ...]]
 
 Write a new SARIF file containing optionally-filtered data from other SARIF file(s)
@@ -145,9 +150,9 @@ a "glob").  This works for all commands, but it is particularly useful for `copy
 One use for this is to combine a set of SARIF files from multiple static analysis tools run during
 a build process into a single file that can be more easily stored and processed as a build asset.
 
-### csv
+#### csv
 
-```
+```plain
 usage: sarif csv [-h] [--output PATH] [--blame-filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 Write a CSV file listing the issues from the SARIF files(s) specified
@@ -170,20 +175,22 @@ Write out a simple tabular list of issues from [a set of] SARIF files.  This can
 Use the `--trim` option to strip specific prefixes from the paths, to make the CSV less verbose.  Alternatively, use `--autotrim` to strip off the longest common prefix.
 
 Generate a CSV summary of a single SARIF file with common file path prefix suppressed:
+
 ```shell
 sarif csv "C:\temp\sarif_files\devskim_myapp.sarif"
 ```
 
 Generate a CSV summary of a directory of SARIF files with path prefix `C:\code\my_source_repo` suppressed:
+
 ```shell
 sarif csv --trim c:\code\my_source_repo "C:\temp\sarif_files"
 ```
 
 See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
-### diff
+#### diff
 
-```
+```plain
 usage: sarif diff [-h] [--output FILE] [--blame-filter FILE] old_file_or_dir new_file_or_dir
 
 Find the difference between two [sets of] SARIF files
@@ -203,11 +210,13 @@ optional arguments:
 Print the difference between two [sets of] SARIF files.
 
 Difference between the issues in two SARIF files:
+
 ```shell
 sarif diff "C:\temp\old_sarif_files\devskim_myapp.sarif" "C:\temp\sarif_files\devskim_myapp.sarif"
 ```
 
 Difference between the issues in two directories of SARIF files:
+
 ```shell
 sarif diff "C:\temp\old_sarif_files" "C:\temp\sarif_files"
 ```
@@ -220,9 +229,30 @@ sarif diff -o mydiff.json "C:\temp\old_sarif_files\devskim_myapp.sarif" "C:\temp
 
 See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
-### html
+#### emacs
 
+```plain
+usage: sarif emacs [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
+
+Write a representation of SARIF file(s) for viewing in emacs
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output PATH, -o PATH
+                        Output file or directory
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+  --no-autotrim, -n     Do not strip off the common prefix of paths in the output document
+  --image IMAGE         Image to include at top of file - SARIF logo by default
+  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
 ```
+
+#### html
+
+```plain
 usage: sarif html [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 Write an HTML representation of SARIF file(s) for viewing in a web browser
@@ -253,9 +283,9 @@ Use the `--image` option to provide a header image for the top of the HTML page.
 
 See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
-### info
+#### info
 
-```
+```plain
 usage: sarif info [-h] [--output FILE] [file_or_dir [file_or_dir ...]]
 
 Print information about SARIF file(s) structure
@@ -274,7 +304,7 @@ structure rather than any meaning of the results produced by the tool.  The summ
 full path of the file, its size and modified date, the number of runs, and for each run, the
 tool that generated the run, the number of results, and the entries in the results' property bags.
 
-```
+```plain
 c:\temp\sarif_files\ios_devskim_output.sarif
   1256241 bytes (1.2 MiB)
   modified: 2021-10-13 21:50:01.251544, accessed: 2022-01-09 18:23:00.060573, ctime: 2021-10-13 20:49:00
@@ -284,9 +314,9 @@ c:\temp\sarif_files\ios_devskim_output.sarif
     All results have properties: tags, DevSkimSeverity
 ```
 
-### ls
+#### ls
 
-```
+```plain
 usage: sarif ls [-h] [--output FILE] [file_or_dir [file_or_dir ...]]
 
 List all SARIF files in the directories specified
@@ -306,9 +336,9 @@ List SARIF files in one or more directories.
 sarif ls "C:\temp\sarif_files" "C:\temp\sarif_with_date"
 ```
 
-### summary
+#### summary
 
-```
+```plain
 usage: sarif ls [-h] [--output FILE] [file_or_dir [file_or_dir ...]]
 
 List all SARIF files in the directories specified
@@ -338,9 +368,9 @@ sarif summary "C:\temp\sarif_files\devskim_myapp.sarif"
 
 See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
-### trend
+#### trend
 
-```
+```plain
 usage: sarif trend [-h] [--output FILE] [--blame-filter FILE] [--dateformat {dmy,mdy,ymd}] [file_or_dir [file_or_dir ...]]
 
 Write a CSV file with time series data from SARIF files with "yyyymmddThhmmssZ" timestamps in their filenames
@@ -369,9 +399,9 @@ sarif trend -o timeline.csv "C:\temp\sarif_with_date" --dateformat dmy
 
 See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
-### usage
+#### usage
 
-```
+```plain
 usage: sarif usage [-h] [--output FILE]
 
 (Command optional) - print usage and exit
@@ -384,9 +414,9 @@ optional arguments:
 
 Print usage and exit.
 
-### word
+#### word
 
-```
+```plain
 usage: sarif word [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 Produce MS Word .docx summaries of the SARIF files specified
@@ -411,11 +441,13 @@ If directories are provided for the `-o` option and the input, then a Word docum
 and for the full set of SARIF files.  Otherwise, a single Word document is created.
 
 Create a Word document for each SARIF file and one for all of them together, in the `reports` directory (created if non-existent):
+
 ```shell
 sarif word -o reports "C:\temp\sarif_files"
 ```
 
 Create a Word document for a single SARIF file:
+
 ```shell
 sarif word -o "reports\devskim_myapp.docx" "C:\temp\sarif_files\devskim_myapp.sarif"
 ```
@@ -426,7 +458,7 @@ Use the `--image` option to provide a header image for the top of the Word docum
 
 See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
-# Blame filtering
+## Blame filtering
 
 Use the `sarif blame` command to augment a SARIF file or multiple SARIF files with blame information.
 
@@ -453,11 +485,12 @@ Blame information is added to the property bag of each `result` object for which
   }
 }
 ```
+
 Note that the bare `boundary` key is given the automatic value `true`.
 
 This blame data can then be used for filtering and summarising via the `--blame-filter` option available for various commands.  This option requires a path to a filter-list file, containing a list of patterns and substrings to match against the blame information author email.  The format of a filter-list file is as follows:
 
-```
+```plain
 # Lines beginning with # are interpreted as comments and ignored.
 # A line beginning with "description: " is interpreted as an optional description for the filter.  If no title is specified, the filter file name is used.
 description: Example filter from README.md
@@ -477,7 +510,7 @@ description: Example filter from README.md
 
 Here's an example of a filter-file that includes issues on lines changed by an `@microsoft.com` email address or a `myname.SOMETHING.com` email address, but not if those email addresses end in `bot@microsoft.com` or contain a GUID.  It's the same as the above example, with comments stripped out.
 
-```
+```plain
 description: Example filter from README.md
 +: @microsoft.com
 +: /^<myname.*\.com>$/
@@ -491,19 +524,19 @@ If there are no inclusion patterns, all issues are included except for those mat
 
 Sometimes, there may be issues in the SARIF file to which the filter cannot be applied, because blame information is not available.  This can be for two reasons: either there is no blame information recorded for the file in which the issue occurred, or the issue location lacks a line number (or specifies line number 1 as a placeholder) so that blame information cannot be correlated to the issue.  These issues are included by default.  To identify which issues these are, create a filter file that excludes everything to which the filter can be applied:
 
-```
+```plain
 description: Exclude everything filterable
 -: /.*/
 ```
 
 Then run a `sarif` command using this filter file as the `--blame-filter` to see the default-included issues.
 
-# Usage as a Python library
+## Usage as a Python library
 
 Although not its primary purpose, you can use sarif-tools from a Python script or module to
 load and summarise SARIF results.
 
-## Basic usage pattern
+### Basic usage pattern
 
 After installation, use `sarif.loader` to load a SARIF file or files, and then use the operations
 on the returned `SarifFile` or `SarifFileSet` objects to explore the data.
@@ -516,24 +549,24 @@ issue_count_by_severity = sarif_data.get_result_count_by_severity()
 error_histogram = sarif_data.get_issue_code_histogram("error")
 ```
 
-## Result access API
+### Result access API
 
 The three classes defined in the `sarif_files` module, `SarifFileSet`, `SarifFile` and `SarifRun`,
 provide similar APIs, which allows SARIF results to be handled similarly at multiple levels of
 aggregation.  This section briefly describes some of the key APIs at the three levels of
 aggregation.
 
-### get_distinct_tool_names()
+#### get_distinct_tool_names()
 
 Returns a list of distinct tool names in a `SarifFile` or for all files in a `SarifFileSet`.
 A `SarifRun` has a single tool name so the equivalent method is `get_tool_name()`.
 
-### get_results()
+#### get_results()
 
 Return the list of SARIF results.  These are objects as defined in the
 [SARIF standard section 3.27](https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638).
 
-### get_records()
+#### get_records()
 
 Return the list of SARIF results as simplified, flattened record dicts.  Each record has the
 attributes defined in `sarif_file.RECORD_ATTRIBUTES`.
@@ -547,24 +580,24 @@ attributes defined in `sarif_file.RECORD_ATTRIBUTES`.
 - `"Line"` - the line number in the file where the issue occurs.  Value is a string.  This defaults
   to `"1"` if the tool failed to identify the line.
 
-### get_records_grouped_by_severity()
+#### get_records_grouped_by_severity()
 
 As per `get_records()`, but the result is a dict from SARIF severity level (`error`, `warning` and
 `note`) to the list of records of that severity level.
 
-### get_result_count(), get_result_count_by_severity()
+#### get_result_count(), get_result_count_by_severity()
 
 Get the total number of SARIF results.  `get_result_count_by_severity()` returns a dict from
 SARIF severity level (`error`, `warning` and `note`) to the integer number of results of that
 severity.
 
-### get_issue_code_histogram(severity)
+#### get_issue_code_histogram(severity)
 
 For the given severity, get histogram in the form of a list of pairs.  The first item in each pair
 is the issue code, the second item is the number of matching records, and the list is sorted in
 decreasing order of frequency (the same as the `sarif summary` command output).
 
-### Disaggregation and filename access
+#### Disaggregation and filename access
 
 These fields and methods allow access to the underlying information about the SARIF files.
 
@@ -583,17 +616,17 @@ These fields and methods allow access to the underlying information about the SA
   only contain a single run, but it is possible to aggregate runs from multiple tools into a
   single SARIF file.
 
-### Path shortening API
+#### Path shortening API
 
 Call `init_path_prefix_stripping(autotrim, path_prefixes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up path filtering, either automatically removing the longest common prefix (`autotrim=True`) or removing specific prefixes (`autotrim=False` and a list of strings in `path_prefixes`).
 
-### Blame filtering API
+#### Blame filtering API
 
 Call `init_blame_filter(filter_description, include_substrings, include_regexes, exclude_substrings, exclude_regexes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up blame filtering.  `filter_description` is a string and the other parameters are lists of strings (with no `/` characters around the regular expressions).  They correspond in an obvious way to the filter file contents described in [Blame filtering](blame-filtering) above.
 
 Call `get_filter_stats()` to retrieve the filter stats after reading the results or records from sarif files.  It returns `None` if there is no filter, or otherwise a `sarif_file.FilterStats` object with integer fields `filtered_in_result_count`, `filtered_out_result_count`, `missing_blame_count` and `unconvincing_line_number_count`.  Call `to_string()` on the `FilterStats` object for a readable representation of these statistics, which also includes the filter file name or description (`filter_description` field).
 
-# Suggested usage in CI pipelines
+## Suggested usage in CI pipelines
 
 Using the `--check` option in combination with the `summary` command causes sarif-tools to exit
 with a nonzero exit code if there are any issues of the specified level, or higher.  This can
@@ -604,7 +637,7 @@ The SARIF issue levels are `error`, `warning` and `note`.  These are all valid o
 
 E.g. to fail if there are any errors or warnings:
 
-```
+```dos
 sarif --check warning summary c:\temp\sarif_files
 ```
 
@@ -613,12 +646,13 @@ to a previous or baseline build.
 
 E.g. to fail if there are any new issue codes at error level:
 
-```
+```dos
 sarif --check error diff c:\temp\old_sarif_files c:\temp\sarif_files
 ```
 
 You can also use sarif-tools to filter and consolidate the output from multiple tools.  E.g.
-```
+
+```bash
 # First run your static analysis tools, configured to write SARIF output.  How to do that depends
 # the tool.
 
@@ -633,6 +667,10 @@ Download the file `myapp_alltools_with_blame_TIMESTAMP.sarif` that is generated.
 filter the results using the `--blame-filter` argument, or generate graph of code quality over time
 using `sarif trend`.
 
-# Credits
+## Credits
 
 sarif-tools was originally developed during the Microsoft Global Hackathon 2021 by Simon Abykov, Nick Brabbs, Anthony Hayward, Sivaji Kondapalli, Matt Parkes and Kathryn Pentland.
+
+Thank you to everyone who has contributed
+[pull requests](https://github.com/microsoft/sarif-tools/pulls?q=reason%3Acompleted)
+since the initial release!

@@ -29,7 +29,7 @@ def load_sarif_files(*args) -> SarifFileSet:
         for path in args:
             path_exists = _add_path_to_sarif_file_set(path, ret)
             if not path_exists:
-                for resolved_path in glob.glob(path, recursive = True):
+                for resolved_path in glob.glob(path, recursive=True):
                     if _add_path_to_sarif_file_set(resolved_path, ret):
                         path_exists = True
             if not path_exists:

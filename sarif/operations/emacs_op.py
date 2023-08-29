@@ -2,13 +2,11 @@
 Code for `sarif emacs` command.
 """
 
-import base64
 from datetime import datetime
 import os
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from sarif import charts
 from sarif.sarif_file import SarifFileSet
 
 _THIS_MODULE_PATH = os.path.dirname(__file__)
@@ -40,9 +38,7 @@ def generate_compile(
                 output_file_name,
             )
             _generate_single_txt(
-                input_file,
-                os.path.join(output, output_file_name),
-                date_val
+                input_file, os.path.join(output, output_file_name), date_val
             )
         output_file = os.path.join(output, ".compile.txt")
     source_description = input_files.get_description()
@@ -52,14 +48,10 @@ def generate_compile(
         "to",
         os.path.basename(output_file),
     )
-    _generate_single_txt(
-        input_files, output_file, date_val
-    )
+    _generate_single_txt(input_files, output_file, date_val)
 
 
-def _generate_single_txt(
-    input_file, output_file, date_val
-):
+def _generate_single_txt(input_file, output_file, date_val):
 
     all_tools = input_file.get_distinct_tool_names()
 

@@ -372,13 +372,14 @@ def _html(args):
     html_op.generate_html(input_files, args.image, output, multiple_file_output)
     return _check(input_files, args.check)
 
+
 def _emacs(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
     _init_blame_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".txt")
-    emacs_op.generate_compile(input_files, output)
+    emacs_op.generate_compile(input_files, output, multiple_file_output)
     return _check(input_files, args.check)
 
 
@@ -465,13 +466,13 @@ _COMMANDS = {
         "fn": _diff,
         "desc": "Find the difference between two [sets of] SARIF files",
     },
-    "html": {
-        "fn": _html,
-        "desc": "Write an HTML representation of SARIF file(s) for viewing in a web browser",
-    },
     "emacs": {
         "fn": _emacs,
         "desc": "Write a representation of SARIF file(s) for viewing in emacs",
+    },
+    "html": {
+        "fn": _html,
+        "desc": "Write an HTML representation of SARIF file(s) for viewing in a web browser",
     },
     "info": {"fn": _info, "desc": "Print information about SARIF file(s) structure"},
     "ls": {"fn": _ls, "desc": "List all SARIF files in the directories specified"},
