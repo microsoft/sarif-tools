@@ -57,7 +57,7 @@ def _generate_info_to_file(sarif_files, file_out):
         )
         run_count = len(input_file.runs)
         print(f"  {run_count} runs" if run_count != 1 else "  1 run", file=file_out)
-        for (run_index, run) in enumerate(input_file.runs):
+        for run_index, run in enumerate(input_file.runs):
             if run_count != 1:
                 print(f"  Run #{run_index + 1}:", file=file_out)
             print(f"    Tool: {run.get_tool_name()}", file=file_out)

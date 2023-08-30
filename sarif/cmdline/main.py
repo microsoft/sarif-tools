@@ -46,7 +46,7 @@ def _create_arg_parser():
     cmd_list = "commands:\n"
     max_cmd_length = max(len(cmd) for cmd in _COMMANDS)
     col_width = max_cmd_length + 2
-    for (cmd, cmd_attributes) in _COMMANDS.items():
+    for cmd, cmd_attributes in _COMMANDS.items():
         cmd_list += cmd.ljust(col_width) + cmd_attributes["desc"] + "\n"
     cmd_list += "Run `sarif <COMMAND> --help` for command-specific help."
     package_version = _read_package_version()
@@ -59,7 +59,7 @@ def _create_arg_parser():
     parser.set_defaults(func=_usage)
     subparsers = parser.add_subparsers(dest="command", help="command")
     subparser = {}
-    for (cmd, cmd_attributes) in _COMMANDS.items():
+    for cmd, cmd_attributes in _COMMANDS.items():
         subparser[cmd] = subparsers.add_parser(cmd, description=cmd_attributes["desc"])
         subparser[cmd].set_defaults(func=cmd_attributes["fn"])
 

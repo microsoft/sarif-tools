@@ -40,7 +40,7 @@ def print_diff(
                     _signed_change(diff[severity]["+"]),
                     _signed_change(-diff[severity]["-"]),
                 )
-                for (issue_code, old_count, new_count) in diff[severity]["codes"]:
+                for issue_code, old_count, new_count in diff[severity]["codes"]:
                     if old_count == 0:
                         print(f'  New issue "{issue_code}" ({_occurrences(new_count)})')
                     elif new_count == 0:
@@ -90,13 +90,13 @@ def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> Dict:
         new_histogram_dict = dict(new_histogram)
         ret[severity] = {"+": 0, "-": 0, "codes": []}
         if original_histogram != new_histogram_dict:
-            for (issue_code, count) in new_histogram:
+            for issue_code, count in new_histogram:
                 old_count = original_histogram.pop(issue_code, 0)
                 if old_count != count:
                     ret[severity]["codes"].append((issue_code, old_count, count))
                     if old_count == 0:
                         ret[severity]["+"] += 1
-            for (issue_code, old_count) in original_histogram.items():
+            for issue_code, old_count in original_histogram.items():
                 ret[severity]["codes"].append((issue_code, old_count, 0))
                 ret[severity]["-"] += 1
         ret["all"]["+"] += ret[severity]["+"]

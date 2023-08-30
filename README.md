@@ -2,27 +2,55 @@
 
 A set of command line tools and Python library for working with SARIF files.
 
-Read more about the SARIF format here: https://sarifweb.azurewebsites.net/
+Read more about the SARIF format here:
+[sarifweb.azurewebsites.net](https://sarifweb.azurewebsites.net/).
 
 ## Installation
 
 ### Prerequisites
 
-You need Python 3.8 or later installed.  Get it from [python.org](https://www.python.org/downloads/).  This document assumes that the `python` command runs that version.
+You need Python 3.8 or later installed.  Get it from [python.org](https://www.python.org/downloads/).
+This document assumes that the `python` command runs that version.
 
 ### Installing on Windows
 
-Open an Admin Command Prompt (Start > Command Prompt > Run as Administrator) and type:
+Open a user command prompt and type:
 
 ```cmd
 pip install sarif-tools
 ```
 
+Check for a warning such as the following:
+
+```log
+WARNING: The script sarif.exe is installed in 'C:\tools\Python38\Scripts' which is not on PATH.
+```
+
+Go into Windows Settings and search for "env" (Edit environment variables for your account) and
+add the missing path to your PATH variable.  You'll need to open a new terminal or reboot, and
+then you can type `sarif --version` at the command prompt.
+
+To install system-wide for all users, use an Administrator command prompt instead, if you are
+comfortable with the security risks.
+
 ### Installing on Linux or Mac
 
 ```bash
-sudo pip install sarif-tools
+pip install sarif-tools
 ```
+
+Check for a warning such as the following:
+
+```log
+WARNING: The script sarif is installed in '/home/XYZ/.local/bin' which is not on PATH.
+```
+
+Add the missing path to your PATH.  How to do that varies by Linux flavour, but editing `~/.profile`
+is often a good approach.  Then after opening a new terminal or running `source ~/.profile`, you
+should be able to type `sarif --version` at the command prompt.
+
+To install system-wide, use `sudo pip install`.  Be aware that this is discouraged from a
+security perspective.
 
 ### Testing the installation
 
@@ -36,13 +64,22 @@ sarif --version
 
 This section has suggestions in case the `sarif` command is not available after installation.
 
-A launcher called `sarif` or `sarif.exe` is created in the Python installation's `Scripts` directory.  The `Scripts` directory needs to be in the `PATH`
-environment variable for you to be able to type `sarif` at the command prompt; this is most likely the case if `pip` is run as a
-super-user when installing (e.g. Administrator Command Prompt on Windows, or using `sudo` on Linux).
+A launcher called `sarif` or `sarif.exe` is created in Python's `Scripts` directory.  The `Scripts`
+directory needs to be in the `PATH` environment variable for you to be able to type `sarif` at the
+command prompt; this is most likely the case if `pip` is run as a super-user when installing (e.g.
+Administrator Command Prompt on Windows, or using `sudo` on Linux).
+If the SARIF tools are installed for the current user only, adding the user's Scripts directory to
+the current user's PATH variable is the best approach.  Search online for how to do that on your
+system.
 
-If the `Scripts` directory is not in the `PATH`, then you need to type `python -m sarif` instead of `sarif` to run the tool.
+If the `Scripts` directory is not in the `PATH`, then you can type `python -m sarif` instead of
+`sarif` to run the tool.
 
-Confusion can arise when the `python` and `pip` commands on the `PATH` are from different installations, or the `python` installation on the super-user's `PATH` is different from the `python` command on the normal user's path.  On Windows, you can use `where python` and `where pip` in normal CMD and Admin CMD to see which installations are in use; on Linux, it's `which python` and `which pip` with and without `sudo`.
+Confusion can arise when the `python` and `pip` commands on the `PATH` are from different
+installations, or the `python` installation on the super-user's `PATH` is different from the
+`python` command on the normal user's path.  On Windows, you can use `where python` and `where pip`
+in normal CMD and Admin CMD to see which installations are in use; on Linux, it's `which python` and
+`which pip` with and without `sudo`.
 
 ## Command Line Usage
 
@@ -339,17 +376,19 @@ sarif ls "C:\temp\sarif_files" "C:\temp\sarif_with_date"
 #### summary
 
 ```plain
-usage: sarif ls [-h] [--output FILE] [file_or_dir [file_or_dir ...]]
+usage: sarif summary [-h] [--output PATH] [--blame-filter FILE] [file_or_dir [file_or_dir ...]]
 
-List all SARIF files in the directories specified
+Write a text summary with the counts of issues from the SARIF files(s) specified
 
 positional arguments:
   file_or_dir           A SARIF file or a directory containing SARIF files
 
 optional arguments:
   -h, --help            show this help message and exit
-  --output FILE, -o FILE
-                        Output file
+  --output PATH, -o PATH
+                        Output file or directory
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
 ```
 
 Print a summary of the issues in one or more SARIF file(s), grouped by severity and then ordered by number of occurrences.
