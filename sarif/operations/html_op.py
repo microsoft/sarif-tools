@@ -74,14 +74,13 @@ def generate_html(
 def _generate_single_html(
     input_file, output_file, date_val, image_mime_type, image_data_base64
 ):
-
     all_tools = input_file.get_distinct_tool_names()
 
     total_distinct_issue_codes = 0
     problems = []
 
     issues_by_severity = input_file.get_records_grouped_by_severity()
-    for (severity, issues_of_severity) in issues_by_severity.items():
+    for severity, issues_of_severity in issues_by_severity.items():
         issue_code_histogram = input_file.get_issue_code_histogram(severity)
 
         distinct_issue_codes = len(issue_code_histogram)
@@ -128,7 +127,7 @@ def _generate_single_html(
 def _enrich_details(histogram, records_of_severity):
     enriched_details = []
 
-    for (error_code, count) in histogram:
+    for error_code, count in histogram:
         error_lines = [e for e in records_of_severity if e["Code"] == error_code]
         lines = sorted(
             error_lines, key=lambda x: x["Location"] + str(x["Line"]).zfill(6)

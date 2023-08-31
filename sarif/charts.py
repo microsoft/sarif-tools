@@ -18,7 +18,7 @@ def generate_severity_pie_chart(sarif_data, output_file=None):
     sizes = []
     labels = []
     explode = []
-    for (severity, count) in sarif_data.get_result_count_by_severity().items():
+    for severity, count in sarif_data.get_result_count_by_severity().items():
         if count > 0:
             sizes.append(count)
             labels.append(severity)

@@ -416,7 +416,7 @@ class SarifRun:
             elif len(records) > 1:
                 common_prefix = records[0]["Location"].strip()
                 for record in records[1:]:
-                    for (char_pos, char) in enumerate(record["Location"].strip()):
+                    for char_pos, char in enumerate(record["Location"].strip()):
                         if char_pos >= len(common_prefix):
                             break
                         if char != common_prefix[char_pos]:

@@ -55,7 +55,6 @@ def generate_word_docs_from_sarif_inputs(
 
 
 def _generate_word_summary(sarif_data, output_file, image_file):
-
     # Create a new document
     document = docx.Document()
 
@@ -186,7 +185,7 @@ def _dump_each_error_in_detail(document, sarif_data):
             # Note: using private property table._cells to avoid performance issue.  See
             # https://stackoverflow.com/a/69105798/316578
             col_index = 0
-            for (cell, cell_text) in zip(table._cells, cells_text):
+            for cell, cell_text in zip(table._cells, cells_text):
                 cell.text = cell_text
                 cell.width = widths[col_index]
                 col_index = col_index + 1 if col_index < 2 else 0

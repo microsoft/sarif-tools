@@ -76,7 +76,7 @@ def _enhance_with_blame(input_files, repo_path):
     # Now join up blame output with result list
     blame_info_count = 0
     item_count = 0
-    for (result, record) in zip(input_files.get_results(), input_files.get_records()):
+    for result, record in zip(input_files.get_results(), input_files.get_records()):
         item_count += 1
         file_path = record["Location"]
         if file_path in file_blame_info:
