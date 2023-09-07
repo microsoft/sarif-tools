@@ -42,7 +42,8 @@ def _load_dir(path):
     for dirpath, _dirnames, filenames in os.walk(path):
         for filename in filenames:
             if has_sarif_file_extension(filename):
-                subdir.add_file(load_sarif_file(os.path.join(dirpath, filename)))
+                subdir.add_file(load_sarif_file(
+                    os.path.join(dirpath, filename)))
     return subdir
 
 
@@ -53,7 +54,7 @@ def load_sarif_file(file_path: str) -> SarifFile:
     data SHALL be encoded in utf-8.
     """
     try:
-        with open(file_path, encoding="utf-8") as file_in:
+        with open(file_path, encoding="utf-8-sig") as file_in:
             data = json.load(file_in)
         return SarifFile(file_path, data)
     except Exception as exception:
