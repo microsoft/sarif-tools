@@ -574,7 +574,7 @@ class SarifRun:
         elif "id" in result["message"]:
             message = result["message"]["id"]
         else:
-            raise Exception(
+            raise IOError(
                 "Message for result "
                 + error_id
                 + " from tool "
