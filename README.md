@@ -223,7 +223,11 @@ Generate a CSV summary of a directory of SARIF files with path prefix `C:\code\m
 sarif csv --trim c:\code\my_source_repo "C:\temp\sarif_files"
 ```
 
-See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+If the SARIF file(s) contain blame information (as added by the `blame` command), then the CSV
+includes an "Author" column indicating who last modified the line in question.
+
+The CSV output can also be filtered using the same blame information; see
+[Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
 #### diff
 

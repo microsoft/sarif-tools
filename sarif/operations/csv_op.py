@@ -24,9 +24,7 @@ def generate_csv(input_files: SarifFileSet, output: str, output_multiple_files: 
                 "to",
                 output_file_name,
             )
-            _write_to_csv(
-                input_file.get_records(), os.path.join(output, output_file_name)
-            )
+            _write_to_csv(input_file, os.path.join(output, output_file_name))
             filter_stats = input_file.get_filter_stats()
             if filter_stats:
                 print(f"  Results are filtered by {filter_stats}")
@@ -38,20 +36,23 @@ def generate_csv(input_files: SarifFileSet, output: str, output_multiple_files: 
         "to",
         os.path.basename(output_file),
     )
-    _write_to_csv(input_files.get_records(), output_file)
+    _write_to_csv(input_files, output_file)
     filter_stats = input_files.get_filter_stats()
     if filter_stats:
         print(f"  Results are filtered by {filter_stats}")
 
 
-def _write_to_csv(list_of_errors, output_file):
+def _write_to_csv(file_or_files, output_file):
     """
     Write out the errors to a CSV file so that a human can do further analysis.
     """
+    list_of_errors = file_or_files.get_records()
     severities = sarif_file.SARIF_SEVERITIES
     # newline="" to avoid \r\r\n - see https://stackoverflow.com/a/3191811/316578
     with open(output_file, "w", encoding="utf-8", newline="") as file_out:
-        writer = csv.DictWriter(file_out, sarif_file.RECORD_ATTRIBUTES)
+        writer = csv.DictWriter(
+            file_out, sarif_file.get_record_headings(file_or_files.has_blame_info())
+        )
         writer.writeheader()
         for severity in severities:
             errors_of_severity = [
