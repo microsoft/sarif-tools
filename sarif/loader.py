@@ -42,8 +42,7 @@ def _load_dir(path):
     for dirpath, _dirnames, filenames in os.walk(path):
         for filename in filenames:
             if has_sarif_file_extension(filename):
-                subdir.add_file(load_sarif_file(
-                    os.path.join(dirpath, filename)))
+                subdir.add_file(load_sarif_file(os.path.join(dirpath, filename)))
     return subdir
 
 

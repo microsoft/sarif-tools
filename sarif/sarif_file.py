@@ -751,12 +751,12 @@ class SarifFile:
         """
         Return a dict from SARIF severity to number of records.
         """
-        get_result_count_by_severity_per_run = [
+        result_count_by_severity_per_run = (
             run.get_result_count_by_severity() for run in self.runs
-        ]
+        )
         return {
             severity: sum(
-                rc.get(severity, 0) for rc in get_result_count_by_severity_per_run
+                rc.get(severity, 0) for rc in result_count_by_severity_per_run
             )
             for severity in SARIF_SEVERITIES
         }
