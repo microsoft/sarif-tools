@@ -264,6 +264,69 @@ Write output to JSON file instead of printing to stdout:
 sarif diff -o mydiff.json "C:\temp\old_sarif_files\devskim_myapp.sarif" "C:\temp\sarif_files\devskim_myapp.sarif"
 ```
 
+The JSON format is like this:
+
+```json
+
+{
+    "all": {
+        "+": 5,
+        "-": 11
+    },
+    "error": {
+        "+": 2,
+        "-": 0,
+        "codes": {
+            "XYZ1234 Some Issue": {
+                "<": 0,
+                ">": 2,
+                "+@": [
+                    {
+                        "Location": "C:\\code\\file1.py",
+                        "Line": 119
+                    },
+                    {
+                        "Location": "C:\\code\\file2.py",
+                        "Line": 61
+                    }
+                ]
+            },
+        }
+    },
+    "warning": {
+        "+": 3,
+        "-": 11,
+        "codes": {...}
+    },
+    "note": {
+        "+": 3,
+        "-": 11,
+        "codes": {...}
+    }
+}
+```
+
+Where:
+
+- "+" indicates new issue types at this severity, "error", "warning" or "note"
+- "-" indicates resolved issue types at this severity (no occurrences remaining)
+- "codes" lists each issue code where the number of occurrences has changed:
+  - occurrences before indicated by "<"
+  - occurrences after indicated by ">"
+  - new locations indicated by "+@"
+
+If the set of issue codes at a given severity has changed, diff will report this even if the total
+number of issue types at that severity is unchanged.
+
+When the number of occurrences of an issue code is unchanged, diff will not report this issue code,
+although it is possible that an equal number of new occurrences of the specific issue have arisen as
+have been resolved.  This is to avoid reporting line number changes.
+
+The `diff` operation shows the location of new occurrences of each issue.  When writing to an
+output JSON file, all new locations are written, but when writing output to the console, a maximum
+of three locations are shown.  Note that there can be some false positives here, if line numbers
+have changed.
+
 See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
 
 #### emacs
