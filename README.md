@@ -149,7 +149,7 @@ sarif blame -o "C:\temp\sarif_files_with_blame_info" -c "C:\code\my_source_repo"
 
 If the current working directory is the git repository, the `-c` argument can be omitted.
 
-See [Blame filtering](blame-filtering) below for the format of the blame information that gets added to the SARIF files.
+See [Blame filtering](#blame-filtering) below for the format of the blame information that gets added to the SARIF files.
 
 #### copy
 
@@ -172,7 +172,7 @@ optional arguments:
 
 Write a new SARIF file containing optionally-filtered data from an existing SARIF file or multiple
 SARIF files.  The resulting file contains each run from the original SARIF files back-to-back.
-The results can be filtered (see [Blame filtering](blame-filtering) below), in which case only
+The results can be filtered (see [Blame filtering](#blame-filtering) below), in which case only
 those results from the original SARIF files that meet the filter are included; the output file
 contains no information about the excluded records.  If a run in the original file was empty,
 or all its results are filtered out, the empty run is still included.
@@ -223,7 +223,11 @@ Generate a CSV summary of a directory of SARIF files with path prefix `C:\code\m
 sarif csv --trim c:\code\my_source_repo "C:\temp\sarif_files"
 ```
 
-See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+If the SARIF file(s) contain blame information (as added by the `blame` command), then the CSV
+includes an "Author" column indicating who last modified the line in question.
+
+The CSV output can also be filtered using the same blame information; see
+[Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 #### diff
 
@@ -327,7 +331,7 @@ output JSON file, all new locations are written, but when writing output to the 
 of three locations are shown.  Note that there can be some false positives here, if line numbers
 have changed.
 
-See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 #### emacs
 
@@ -381,7 +385,7 @@ Use the `--trim` option to strip specific prefixes from the paths, to make the g
 
 Use the `--image` option to provide a header image for the top of the HTML page.  The image is embedded into the HTML, so the HTML document remains a portable standalone file.
 
-See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 #### info
 
@@ -468,7 +472,7 @@ When no output directory or file is specified, the overall summary is printed to
 sarif summary "C:\temp\sarif_files\devskim_myapp.sarif"
 ```
 
-See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 #### trend
 
@@ -499,7 +503,7 @@ The CSV can be loaded in Microsoft Excel for graphing and trend analysis.
 sarif trend -o timeline.csv "C:\temp\sarif_with_date" --dateformat dmy
 ```
 
-See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 #### usage
 
@@ -558,7 +562,7 @@ Use the `--trim` option to strip specific prefixes from the paths, to make the g
 
 Use the `--image` option to provide a header image for the top of the Word document.
 
-See [Blame filtering](blame-filtering) below for how to use the `--blame-filter` option.
+See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 ## Blame filtering
 
@@ -724,7 +728,7 @@ Call `init_path_prefix_stripping(autotrim, path_prefixes)` on a `SarifFileSet`, 
 
 #### Blame filtering API
 
-Call `init_blame_filter(filter_description, include_substrings, include_regexes, exclude_substrings, exclude_regexes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up blame filtering.  `filter_description` is a string and the other parameters are lists of strings (with no `/` characters around the regular expressions).  They correspond in an obvious way to the filter file contents described in [Blame filtering](blame-filtering) above.
+Call `init_blame_filter(filter_description, include_substrings, include_regexes, exclude_substrings, exclude_regexes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up blame filtering.  `filter_description` is a string and the other parameters are lists of strings (with no `/` characters around the regular expressions).  They correspond in an obvious way to the filter file contents described in [Blame filtering](#blame-filtering) above.
 
 Call `get_filter_stats()` to retrieve the filter stats after reading the results or records from sarif files.  It returns `None` if there is no filter, or otherwise a `sarif_file.FilterStats` object with integer fields `filtered_in_result_count`, `filtered_out_result_count`, `missing_blame_count` and `unconvincing_line_number_count`.  Call `to_string()` on the `FilterStats` object for a readable representation of these statistics, which also includes the filter file name or description (`filter_description` field).
 

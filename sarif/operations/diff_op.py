@@ -10,7 +10,9 @@ from sarif.sarif_file import SarifFileSet, SARIF_SEVERITIES
 
 
 def _occurrences(occurrence_count):
-    return "1 occurrence" if occurrence_count == 1 else f"{occurrence_count} occurrences"
+    return (
+        "1 occurrence" if occurrence_count == 1 else f"{occurrence_count} occurrences"
+    )
 
 
 def _signed_change(difference):

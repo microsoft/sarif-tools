@@ -11,7 +11,8 @@ from typing import Dict, Iterator, List, Optional, Tuple
 
 SARIF_SEVERITIES = ["error", "warning", "note"]
 
-RECORD_ATTRIBUTES = ["Tool", "Severity", "Code", "Location", "Line"]
+BASIC_RECORD_ATTRIBUTES = ["Tool", "Severity", "Code", "Location", "Line"]
+BLAME_RECORD_ATTRIBUTES = ["Author"]
 
 # Standard time format for filenames, e.g. `20211012T110000Z` (not part of the SARIF standard).
 # Can obtain from bash via `date +"%Y%m%dT%H%M%SZ"``
@@ -86,6 +87,20 @@ def _count_records_by_issue_code(records, severity) -> List[Tuple]:
             code = record["Code"]
             code_to_count[code] = code_to_count.get(code, 0) + 1
     return sorted(code_to_count.items(), key=lambda x: x[1], reverse=True)
+
+
+def get_record_headings(with_blame) -> List[str]:
+    """
+    Get the record headings for this SARIF file.
+
+    The result is BASIC_RECORD_ATTRIBUTES if there is no blame information in the SARIF file,
+    or extended with author information otherwise.
+    """
+    return (
+        BASIC_RECORD_ATTRIBUTES + BLAME_RECORD_ATTRIBUTES
+        if with_blame
+        else BASIC_RECORD_ATTRIBUTES
+    )
 
 
 class FilterStats:
@@ -203,6 +218,14 @@ def _add_filter_stats(accumulator, filter_stats):
     return accumulator
 
 
+def _get_author_mail_from_blame_info(blame_info):
+    return (
+        blame_info.get("author-mail", None) or blame_info.get("committer-mail", None)
+        if blame_info
+        else None
+    )
+
+
 class _BlameFilter:
     """
     Class that implements blame filtering.
@@ -250,7 +273,7 @@ class _BlameFilter:
 
     def rehydrate_filter_stats(self, dehydrated_filter_stats, filter_datetime):
         """
-        Restore filter stats from the SARIF file directly, where they were recordd when the filter
+        Restore filter stats from the SARIF file directly, where they were recorded when the filter
         was previously run.
 
         Note that if init_blame_filter is called, these rehydrated stats are discarded.
@@ -302,43 +325,36 @@ class _BlameFilter:
     def _filter_append(self, filtered_results, result, blame_info):
         # Remove any existing filter log on the result
         result.setdefault("properties", {}).pop("filtered", None)
-        if blame_info:
-            author_mail = blame_info.get("author-mail", None) or blame_info.get(
-                "committer-mail", None
-            )
-            if author_mail:
-                # First, check inclusion
-                included = self._check_include_result(author_mail)
-                if included:
-                    self.filter_stats.filtered_in_result_count += 1
-                    included["filter"] = self.filter_stats.filter_description
-                    result["properties"]["filtered"] = included
+        author_mail = _get_author_mail_from_blame_info(blame_info)
+        if author_mail:
+            # First, check inclusion
+            included = self._check_include_result(author_mail)
+            if included:
+                self.filter_stats.filtered_in_result_count += 1
+                included["filter"] = self.filter_stats.filter_description
+                result["properties"]["filtered"] = included
+                filtered_results.append(result)
+            else:
+                (_file_path, line_number) = _read_result_location(result)
+                if line_number == "1" or not line_number:
+                    # Line number is not convincing.  Blame information may be misattributed.
+                    self.filter_stats.unconvincing_line_number_count += 1
+                    result["properties"]["filtered"] = {
+                        "filter": self.filter_stats.filter_description,
+                        "state": "default",
+                        "missing": "line",
+                    }
                     filtered_results.append(result)
                 else:
-                    (_file_path, line_number) = _read_result_location(result)
-                    if line_number == "1" or not line_number:
-                        # Line number is not convincing.  Blame information may be misattributed.
-                        self.filter_stats.unconvincing_line_number_count += 1
-                        result["properties"]["filtered"] = {
-                            "filter": self.filter_stats.filter_description,
-                            "state": "default",
-                            "missing": "line",
-                        }
-                        filtered_results.append(result)
-                    else:
-                        self.filter_stats.filtered_out_result_count += 1
-            else:
-                self.filter_stats.missing_blame_count += 1
-                # Result did not contain complete blame information, so don't filter it out.
-                result["properties"]["filtered"] = {
-                    "filter": self.filter_stats.filter_description,
-                    "state": "default",
-                    "missing": "blame",
-                }
-                filtered_results.append(result)
+                    self.filter_stats.filtered_out_result_count += 1
         else:
             self.filter_stats.missing_blame_count += 1
-            # Result did not contain blame information, so don't filter it out.
+            # Result did not contain complete blame information, so don't filter it out.
+            result["properties"]["filtered"] = {
+                "filter": self.filter_stats.filter_description,
+                "state": "default",
+                "missing": "blame",
+            }
             filtered_results.append(result)
 
     def filter_results(self, results):
@@ -507,7 +523,10 @@ class SarifRun:
         """
         if not self._cached_records:
             results = self.get_results()
-            self._cached_records = [self.result_to_record(result) for result in results]
+            include_blame_info = self.has_blame_info()
+            self._cached_records = [
+                self.result_to_record(result, include_blame_info) for result in results
+            ]
         return self._cached_records
 
     def get_records_grouped_by_severity(self) -> Dict[str, List[Dict]]:
@@ -516,11 +535,12 @@ class SarifRun:
         """
         return _group_records_by_severity(self.get_records())
 
-    def result_to_record(self, result):
+    def result_to_record(self, result, include_blame_info=False):
         """
-        Convert a SARIF result object to a simple record with fields "Tool", "Location", "Line",
-        "Severity" and "Code".
-        See definition of result object here:
+        Convert a SARIF result object to a simple record dict.
+
+        Fields are "Tool", "Location", "Line", "Severity" and "Code".  Also "Author" if blame
+        information is present.  See definition of result object here:
         https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638
         """
         error_id = result["ruleId"]
@@ -578,6 +598,11 @@ class SarifRun:
             if message.startswith(error_id)
             else f"{error_id} {message}",
         }
+        if include_blame_info:
+            record["Author"] = _get_author_mail_from_blame_info(
+                result.get("properties", {}).get("blame", None)
+            )
+
         return record
 
     def get_result_count(self) -> int:
@@ -609,10 +634,32 @@ class SarifRun:
         """
         return self._filter.get_filter_stats()
 
+    def has_blame_info(self) -> bool:
+        """
+        Check whether this SARIF file contains blame info.
+        """
+        return any(
+            r.get("properties", {}).get("blame", None)
+            for r in self.run_data.get("results", [])
+        )
+
+    def get_record_headings(self) -> List[str]:
+        """
+        Get the record headings for this SARIF file.
+
+        The result is BASIC_RECORD_ATTRIBUTES if there is no blame information in the SARIF file,
+        or extended with author information otherwise.
+        """
+        return (
+            BASIC_RECORD_ATTRIBUTES + BLAME_RECORD_ATTRIBUTES
+            if self.has_blame_info()
+            else BASIC_RECORD_ATTRIBUTES
+        )
+
 
 class SarifFile:
     """
-    Class to hold SARIF data parsed from a file and provide accesssors to the data.
+    Class to hold SARIF data parsed from a file and provide accessors to the data.
     """
 
     def __init__(self, file_path, data):
@@ -784,6 +831,10 @@ class SarifFile:
         for run in self.runs:
             ret = _add_filter_stats(ret, run.get_filter_stats())
         return ret
+
+    def has_blame_info(self) -> bool:
+        """Is there (any) blame info in this SARIF file?"""
+        return any(run.has_blame_info() for run in self.runs)
 
 
 class SarifFileSet:
@@ -998,3 +1049,7 @@ class SarifFileSet:
         for input_file in self.files:
             ret = _add_filter_stats(ret, input_file.get_filter_stats())
         return ret
+
+    def has_blame_info(self) -> bool:
+        """Is there (any) blame info in (any of) the SARIF files?"""
+        return any(input_file.has_blame_info() for input_file in self.files)
