@@ -128,7 +128,7 @@ def _enrich_details(histogram, records_of_severity):
     enriched_details = []
 
     for error_code, count in histogram:
-        error_lines = [e for e in records_of_severity if e["Code"] == error_code]
+        error_lines = (e for e in records_of_severity if e["Code"] == error_code)
         lines = sorted(
             error_lines, key=lambda x: x["Location"] + str(x["Line"]).zfill(6)
         )

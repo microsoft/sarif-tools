@@ -547,7 +547,9 @@ class SarifRun:
         tool_name = self.get_tool_name()
         (file_path, line_number) = _read_result_location(result)
         if not file_path:
-            raise ValueError(f"No location in {error_id} output from {tool_name}")
+            # Result having non-empty location is only a "SHOULD" in the SARIF spec 3.27.12.
+            # Some tools such as GCC 13 can output issues with no location.
+            file_path = "-"
         if not line_number:
             line_number = "1"
 
@@ -568,19 +570,23 @@ class SarifRun:
             "level", "warning"
         )  # If an error has no specified level then by default it is a warning
 
-        # per RFC3629 At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629
-        if "text" in result["message"]:
-            message = result["message"]["text"]
-        elif "id" in result["message"]:
-            message = result["message"]["id"]
+        if "message" in result:
+            # per RFC3629 At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629
+            message_data = result["message"]
+            if "text" in message_data:
+                message = message_data["text"]
+            elif "id" in message_data:
+                message = message_data["id"]
+            else:
+                raise IOError(
+                    "Message for result "
+                    + error_id
+                    + " from tool "
+                    + tool_name
+                    + " do not comply with RFC3629. At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629"
+                )
         else:
-            raise IOError(
-                "Message for result "
-                + error_id
-                + " from tool "
-                + tool_name
-                + " do not comply with RFC3629. At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629"
-            )
+            message = error_id
 
         # Create a dict representing this result
         record = {
@@ -588,7 +594,9 @@ class SarifRun:
             "Location": file_path,
             "Line": line_number,
             "Severity": severity,
-            "Code": f"{error_id} {message}",
+            "Code": message
+            if message.startswith(error_id)
+            else f"{error_id} {message}",
         }
         if include_blame_info:
             record["Author"] = _get_author_mail_from_blame_info(
@@ -798,12 +806,12 @@ class SarifFile:
         """
         Return a dict from SARIF severity to number of records.
         """
-        get_result_count_by_severity_per_run = [
+        result_count_by_severity_per_run = (
             run.get_result_count_by_severity() for run in self.runs
-        ]
+        )
         return {
             severity: sum(
-                rc.get(severity, 0) for rc in get_result_count_by_severity_per_run
+                rc.get(severity, 0) for rc in result_count_by_severity_per_run
             )
             for severity in SARIF_SEVERITIES
         }

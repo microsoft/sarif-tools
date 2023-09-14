@@ -10,11 +10,17 @@ from sarif.sarif_file import SarifFileSet, SARIF_SEVERITIES
 
 
 def _occurrences(occurrence_count):
-    return "1 occurence" if occurrence_count == 1 else f"{occurrence_count} occurrences"
+    return (
+        "1 occurrence" if occurrence_count == 1 else f"{occurrence_count} occurrences"
+    )
 
 
 def _signed_change(difference):
     return str(difference) if difference < 0 else f"+{difference}"
+
+
+def _record_to_location_tuple(record) -> str:
+    return (record["Location"], record["Line"])
 
 
 def print_diff(
@@ -40,7 +46,12 @@ def print_diff(
                     _signed_change(diff[severity]["+"]),
                     _signed_change(-diff[severity]["-"]),
                 )
-                for issue_code, old_count, new_count in diff[severity]["codes"]:
+                for issue_code, code_info in diff[severity]["codes"].items():
+                    (old_count, new_count, new_locations) = (
+                        code_info["<"],
+                        code_info[">"],
+                        code_info.get("+@", []),
+                    )
                     if old_count == 0:
                         print(f'  New issue "{issue_code}" ({_occurrences(new_count)})')
                     elif new_count == 0:
@@ -50,6 +61,13 @@ def print_diff(
                             f"  Number of occurrences {old_count} -> {new_count}",
                             f'({_signed_change(new_count - old_count)}) for issue "{issue_code}"',
                         )
+                    if new_locations:
+                        # Print the top 3 new locations
+                        for record in new_locations[0:3]:
+                            (location, line) = _record_to_location_tuple(record)
+                            print(f"    {location}:{line}")
+                        if len(new_locations) > 3:
+                            print("    ...")
             else:
                 print(severity, "level: +0 -0 no changes")
         print(
@@ -76,6 +94,31 @@ def print_diff(
     return ret
 
 
+def _find_new_occurrences(new_records, old_records, issue_code):
+    old_occurrences = [r for r in old_records if r["Code"] == issue_code]
+    new_occurrences_new_locations = []
+    new_occurrences_new_lines = []
+    for r in new_records:
+        if r["Code"] == issue_code:
+            (new_location, new_line) = (True, True)
+            for old_r in old_occurrences:
+                if old_r["Location"] == r["Location"]:
+                    new_location = False
+                    if old_r["Line"] == r["Line"]:
+                        new_line = False
+                        break
+            if new_location:
+                if r not in new_occurrences_new_locations:
+                    new_occurrences_new_locations.append(r)
+            elif new_line:
+                if r not in new_occurrences_new_lines:
+                    new_occurrences_new_lines.append(r)
+
+    return sorted(
+        new_occurrences_new_locations, key=_record_to_location_tuple
+    ) + sorted(new_occurrences_new_lines, key=_record_to_location_tuple)
+
+
 def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> Dict:
     """
     Generate a diff of the issues from the SARIF files.
@@ -88,16 +131,26 @@ def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> Dict:
         original_histogram = dict(original_sarif.get_issue_code_histogram(severity))
         new_histogram = new_sarif.get_issue_code_histogram(severity)
         new_histogram_dict = dict(new_histogram)
-        ret[severity] = {"+": 0, "-": 0, "codes": []}
+        ret[severity] = {"+": 0, "-": 0, "codes": {}}
         if original_histogram != new_histogram_dict:
             for issue_code, count in new_histogram:
                 old_count = original_histogram.pop(issue_code, 0)
                 if old_count != count:
-                    ret[severity]["codes"].append((issue_code, old_count, count))
+                    ret[severity]["codes"][issue_code] = {"<": old_count, ">": count}
                     if old_count == 0:
                         ret[severity]["+"] += 1
+                    new_occurrences = _find_new_occurrences(
+                        new_sarif.get_records(),
+                        original_sarif.get_records(),
+                        issue_code,
+                    )
+                    if new_occurrences:
+                        ret[severity]["codes"][issue_code]["+@"] = [
+                            {"Location": r["Location"], "Line": r["Line"]}
+                            for r in new_occurrences
+                        ]
             for issue_code, old_count in original_histogram.items():
-                ret[severity]["codes"].append((issue_code, old_count, 0))
+                ret[severity]["codes"][issue_code] = {"<": old_count, ">": 0}
                 ret[severity]["-"] += 1
         ret["all"]["+"] += ret[severity]["+"]
         ret["all"]["-"] += ret[severity]["-"]
