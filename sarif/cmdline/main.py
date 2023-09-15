@@ -11,6 +11,7 @@ from sarif import loader, sarif_file
 
 from sarif.operations import (
     blame_op,
+    codeclimate_op,
     copy_op,
     csv_op,
     diff_op,
@@ -82,7 +83,7 @@ def _create_arg_parser():
         + "(or for diff, an increase in issues at that level).",
     )
 
-    for cmd in ["blame", "csv", "html", "emacs", "summary", "word"]:
+    for cmd in ["blame", "codeclimate", "csv", "html", "emacs", "summary", "word"]:
         subparser[cmd].add_argument(
             "--output", "-o", type=str, metavar="PATH", help="Output file or directory"
         )
@@ -91,7 +92,7 @@ def _create_arg_parser():
             "--output", "-o", type=str, metavar="FILE", help="Output file"
         )
 
-    for cmd in ["copy", "csv", "diff", "summary", "html", "emacs", "trend", "word"]:
+    for cmd in ["codeclimate", "copy", "csv", "diff", "summary", "html", "emacs", "trend", "word"]:
         subparser[cmd].add_argument(
             "--blame-filter",
             "-b",
@@ -115,13 +116,14 @@ def _create_arg_parser():
         help='Append current timestamp to output filename in the "yyyymmddThhmmssZ" format used by '
         "the `sarif trend` command",
     )
-    # csv defaults to no trimming
-    subparser["csv"].add_argument(
-        "--autotrim",
-        "-a",
-        action="store_true",
-        help="Strip off the common prefix of paths in the CSV output",
-    )
+    # codeclimate and csv defaults to no trimming
+    for cmd in ["codeclimate", "csv"]:
+        subparser[cmd].add_argument(
+            "--autotrim",
+            "-a",
+            action="store_true",
+            help="Strip off the common prefix of paths in the CSV output",
+        )
     # word and html default to trimming
     for cmd in ["html", "emacs", "word"]:
         subparser[cmd].add_argument(
@@ -135,8 +137,8 @@ def _create_arg_parser():
             type=str,
             help="Image to include at top of file - SARIF logo by default",
         )
-    # csv, html and word allow trimmable paths to be specified
-    for cmd in ["csv", "word", "html", "emacs"]:
+    # codeclimate, csv, html and word allow trimmable paths to be specified
+    for cmd in ["codeclimate", "csv", "word", "html", "emacs"]:
         subparser[cmd].add_argument(
             "--trim",
             metavar="PREFIX",
@@ -331,6 +333,16 @@ def _blame(args):
     return _check(input_files, args.check)
 
 
+def _codeclimate(args):
+    input_files = loader.load_sarif_files(*args.files_or_dirs)
+    input_files.init_default_line_number_1()
+    _init_path_prefix_stripping(input_files, args, strip_by_default=False)
+    _init_blame_filtering(input_files, args)
+    (output, multiple_file_output) = _prepare_output(input_files, args.output, ".json")
+    codeclimate_op.generate(input_files, output, multiple_file_output)
+    return _check(input_files, args.check)
+
+
 def _copy(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     _init_blame_filtering(input_files, args)
@@ -453,6 +465,11 @@ _COMMANDS = {
     "blame": {
         "fn": _blame,
         "desc": "Enhance SARIF file with information from `git blame`",
+    },
+    "codeclimate": {
+        "fn": _codeclimate,
+        "desc": "Write a JSON representation in Code Climate format of SARIF file(s) "
+                "for viewing as a Code Quality report in GitLab UI",
     },
     "copy": {
         "fn": _copy,
