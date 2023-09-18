@@ -69,7 +69,7 @@ def _write_to_json(list_of_errors, output_file):
 
         fingerprint = hashlib.md5(f"{description} {path} ${line}`]".encode()).hexdigest()
 
-        # "categories" property is not used in GitLab by marked as "required" in Code Climate spec.
+        # "categories" property is not used in GitLab but marked as "required" in Code Climate spec.
         # There is no easy way to determine a category so the fixed value is set.
         content.append({
             "type": "issue",

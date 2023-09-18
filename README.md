@@ -175,7 +175,7 @@ optional arguments:
 Write out a JSON file of Code Climate tool format from [a set of] SARIF files.  
 This can then be published as a Code Quality report artefact in a GitLab pipeline and shown in GitLab UI for merge requests.
 
-The JSON output can also be filtered using the same blame information; see
+The JSON output can also be filtered using the blame information; see
 [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 #### copy

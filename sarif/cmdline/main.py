@@ -116,7 +116,7 @@ def _create_arg_parser():
         help='Append current timestamp to output filename in the "yyyymmddThhmmssZ" format used by '
         "the `sarif trend` command",
     )
-    # codeclimate and csv defaults to no trimming
+    # codeclimate and csv default to no trimming
     for cmd in ["codeclimate", "csv"]:
         subparser[cmd].add_argument(
             "--autotrim",
