@@ -84,12 +84,12 @@ in normal CMD and Admin CMD to see which installations are in use; on Linux, it'
 ## Command Line Usage
 
 ```plain
-usage: sarif [-h] [--version] [--debug] [--check {error,warning,note}] {blame,copy,csv,diff,emacs,html,info,ls,summary,trend,usage,word} ...
+usage: sarif [-h] [--version] [--debug] [--check {error,warning,note}] {blame,codeclimate,copy,csv,diff,emacs,html,info,ls,summary,trend,usage,word} ...
 
 Process sets of SARIF files
 
 positional arguments:
-  {blame,copy,csv,diff,emacs,html,info,ls,summary,trend,usage,word}
+  {blame,codeclimate,copy,csv,diff,emacs,html,info,ls,summary,trend,usage,word}
                         command
 
 optional arguments:
@@ -100,18 +100,19 @@ optional arguments:
                         Exit with error code if there are any issues of the specified level (or for diff, an increase in issues at that level).
 
 commands:
-blame    Enhance SARIF file with information from `git blame`
-copy     Write a new SARIF file containing optionally-filtered data from other SARIF file(s)
-csv      Write a CSV file listing the issues from the SARIF files(s) specified
-diff     Find the difference between two [sets of] SARIF files
-emacs    Write a representation of SARIF file(s) for viewing in emacs
-html     Write an HTML representation of SARIF file(s) for viewing in a web browser
-info     Print information about SARIF file(s) structure
-ls       List all SARIF files in the directories specified
-summary  Write a text summary with the counts of issues from the SARIF files(s) specified
-trend    Write a CSV file with time series data from SARIF files with "yyyymmddThhmmssZ" timestamps in their filenames
-usage    (Command optional) - print usage and exit
-word     Produce MS Word .docx summaries of the SARIF files specified
+blame        Enhance SARIF file with information from `git blame`
+codeclimate  Write a JSON representation in Code Climate format of SARIF file(s) for viewing as a Code Quality report in GitLab UI
+copy         Write a new SARIF file containing optionally-filtered data from other SARIF file(s)
+csv          Write a CSV file listing the issues from the SARIF files(s) specified
+diff         Find the difference between two [sets of] SARIF files
+emacs        Write a representation of SARIF file(s) for viewing in emacs
+html         Write an HTML representation of SARIF file(s) for viewing in a web browser
+info         Print information about SARIF file(s) structure
+ls           List all SARIF files in the directories specified
+summary      Write a text summary with the counts of issues from the SARIF files(s) specified
+trend        Write a CSV file with time series data from SARIF files with "yyyymmddThhmmssZ" timestamps in their filenames
+usage        (Command optional) - print usage and exit
+word         Produce MS Word .docx summaries of the SARIF files specified
 Run `sarif <COMMAND> --help` for command-specific help.
 ```
 
@@ -150,6 +151,32 @@ sarif blame -o "C:\temp\sarif_files_with_blame_info" -c "C:\code\my_source_repo"
 If the current working directory is the git repository, the `-c` argument can be omitted.
 
 See [Blame filtering](#blame-filtering) below for the format of the blame information that gets added to the SARIF files.
+
+#### codeclimate
+
+```plain
+usage: sarif codeclimate [-h] [--output PATH] [--blame-filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir ...]
+
+Write a JSON representation in Code Climate format of SARIF file(s) for viewing as a Code Quality report in GitLab UI
+
+positional arguments:
+  file_or_dir           A SARIF file or a directory containing SARIF files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output PATH, -o PATH
+                        Output file or directory
+  --blame-filter FILE, -b FILE
+                        Specify the blame filter file to apply. See README for format.
+  --autotrim, -a        Strip off the common prefix of paths in the CSV output
+  --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
+```
+
+Write out a JSON file of Code Climate tool format from [a set of] SARIF files.  
+This can then be published as a Code Quality report artefact in a GitLab pipeline and shown in GitLab UI for merge requests.
+
+The JSON output can also be filtered using the blame information; see
+[Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
 
 #### copy
 
