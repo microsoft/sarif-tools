@@ -621,37 +621,42 @@ Blame information is added to the property bag of each `result` object for which
 
 Note that the bare `boundary` key is given the automatic value `true`.
 
-This blame data can then be used for filtering and summarising via the `--blame-filter` option available for various commands.  This option requires a path to a filter-list file, containing a list of patterns and substrings to match against the blame information author email.  The format of a filter-list file is as follows:
+This blame data can then be used for filtering and summarising via the `--blame-filter` option available for various commands.  This option requires a path to a filter-list YAML file, containing a list of patterns and substrings to match against the blame information author email.  The format of a filter-list file is as follows:
 
-```plain
+```yaml
 # Lines beginning with # are interpreted as comments and ignored.
-# A line beginning with "description: " is interpreted as an optional description for the filter.  If no title is specified, the filter file name is used.
+# Optional description for the filter.  If no title is specified, the filter file name is used.
 description: Example filter from README.md
-# Lines beginning with "+: " are interpreted as inclusion substrings.  E.g. the following line includes issues whose author-mail field contains "@microsoft.com".
-+: @microsoft.com
-# The "+: " can be omitted.
-@microsoft.com
-# Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are included.  Use ^ and $ to match the whole author-mail field.
-+: /^<myname.*\.com>$/
-# Again, the "+: " can be omitted for a regular expression include pattern.
-/^<myname.*\.com>$/
-# Lines beginning with "-: " are interpreted as exclusion substrings.  E.g. the following line excludes issues whose author-mail field contains "bot@microsoft.com".
--: bot@microsoft.com
-# Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are excluded.  Use ^ and $ to match the whole author-mail field.  E.g. the following pattern excludes all issues whose author-mail field contains a GUID.
--: /[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/
+
+# Lines under `include` are interpreted as inclusion substrings.  
+include:
+  # The following line includes issues whose author-mail field contains "@microsoft.com". 
+  # Values with special characters `\:;_()$%^@,` must be enclosed in quotes (single or double):
+  - "@microsoft.com"
+  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are included.  Use ^ and $ to match the whole author-mail field.
+  - /^<myname.*\.com>$/
+
+# Lines under `exclude` are interpreted as exclusion substrings.
+exclude:
+  # The following line excludes issues whose author-mail field contains "bot@microsoft.com".
+  - bot@microsoft.com
+  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are excluded.  Use ^ and $ to match the whole author-mail field.  E.g. the following pattern excludes all issues whose author-mail field contains a GUID.
+  - '/[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/'
 ```
 
 Here's an example of a filter-file that includes issues on lines changed by an `@microsoft.com` email address or a `myname.SOMETHING.com` email address, but not if those email addresses end in `bot@microsoft.com` or contain a GUID.  It's the same as the above example, with comments stripped out.
 
 ```plain
 description: Example filter from README.md
-+: @microsoft.com
-+: /^<myname.*\.com>$/
--: bot@microsoft.com
--: /[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/
+include:
+  - "@microsoft.com"
+  - /^<myname.*\.com>$/
+exclude:
+  - bot@microsoft.com
+  - '/[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/'
 ```
 
-All matching is case insensitive, because email addresses are.  Whitespace at the start and end of lines is ignored, which also means that line ending characters don't matter.  The blame filter file must be UTF-8 encoded (including plain ASCII7).  It can have a byte order mark or not.
+All matching is case insensitive, because email addresses are.  Whitespace at the start and end of lines is ignored, which also means that line ending characters don't matter.  The blame filter file must be UTF-8 encoded (including plain ASCII7).
 
 If there are no inclusion patterns, all issues are included except for those matching the exclusion patterns.  If there are inclusion patterns, only issues matching the inclusion patterns are included.  If an issue matches one or more inclusion patterns and also at least one exclusion pattern, it is excluded.
 
@@ -659,7 +664,8 @@ Sometimes, there may be issues in the SARIF file to which the filter cannot be a
 
 ```plain
 description: Exclude everything filterable
--: /.*/
+exclude:
+  - /.*/
 ```
 
 Then run a `sarif` command using this filter file as the `--blame-filter` to see the default-included issues.

@@ -7,6 +7,8 @@ from importlib import metadata
 import os
 import sys
 
+import yaml
+
 from sarif import loader, sarif_file
 
 from sarif.operations import (
@@ -204,52 +206,33 @@ def _check(input_files: sarif_file.SarifFileSet, check_level):
     return ret
 
 
+def _parse_filters(filters, substrings, regexps):
+    for pattern_spec in filters:
+        pattern_spec_len = len(pattern_spec)
+        if (
+                pattern_spec_len > 2
+                and pattern_spec.startswith("/")
+                and pattern_spec.endswith("/")
+        ):
+            regexps.append(pattern_spec[1: pattern_spec_len - 1])
+        else:
+            substrings.append(pattern_spec)
+
+
 def _load_blame_filter_file(file_path):
-    filter_description = os.path.basename(file_path)
     include_substrings = []
     include_regexps = []
     exclude_substrings = []
     exclude_regexps = []
     try:
-        with open(file_path, encoding="utf-8") as file_in:
-            for line in file_in.readlines():
-                if line.startswith("\ufeff"):
-                    # Strip byte order mark
-                    line = line[1:]
-                lstrip = line.strip()
-                if lstrip.startswith("#"):
-                    # Ignore comment lines
-                    continue
-                pattern_spec = None
-                is_include = True
-                if lstrip.startswith("description:"):
-                    filter_description = lstrip[12:].strip()
-                elif lstrip.startswith("+: "):
-                    is_include = True
-                    pattern_spec = lstrip[3:].strip()
-                elif lstrip.startswith("-: "):
-                    is_include = False
-                    pattern_spec = lstrip[3:].strip()
-                else:
-                    is_include = True
-                    pattern_spec = lstrip
-                if pattern_spec:
-                    pattern_spec_len = len(pattern_spec)
-                    if (
-                        pattern_spec_len > 2
-                        and pattern_spec.startswith("/")
-                        and pattern_spec.endswith("/")
-                    ):
-                        (include_regexps if is_include else exclude_regexps).append(
-                            pattern_spec[1 : pattern_spec_len - 1]
-                        )
-                    else:
-                        (
-                            include_substrings if is_include else exclude_substrings
-                        ).append(pattern_spec)
-    except UnicodeDecodeError as error:
+        with (open(file_path, encoding="utf-8") as file_in):
+            yaml_content = yaml.safe_load(file_in)
+            filter_description = yaml_content.get("description", os.path.basename(file_path))
+            _parse_filters(yaml_content.get("include", []), include_substrings, include_regexps)
+            _parse_filters(yaml_content.get("exclude", []), exclude_substrings, exclude_regexps)
+    except yaml.YAMLError as error:
         raise IOError(
-            f"Cannot read blame filter file {file_path}: not UTF-8 encoded?"
+            f"Cannot read blame filter file {file_path}"
         ) from error
     return (
         filter_description,
