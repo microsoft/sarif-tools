@@ -9,7 +9,7 @@ import os
 import re
 from typing import Dict, Iterator, List, Optional, Tuple
 
-from sarif.filter.general_filter import BlameFilter, get_author_mail_from_blame_info
+from sarif.filter.general_filter import GeneralFilter
 from sarif.filter.filter_stats import FilterStats
 
 SARIF_SEVERITIES = ["error", "warning", "note"]
@@ -17,7 +17,8 @@ SARIF_SEVERITIES = ["error", "warning", "note"]
 BASIC_RECORD_ATTRIBUTES = ["Tool", "Severity", "Code", "Location", "Line"]
 BLAME_RECORD_ATTRIBUTES = ["Author"]
 
-# Standard time format for filenames, e.g. `20211012T110000Z` (not part of the SARIF standard).
+# Standard time format for filenames, e.g. `20211012T110000Z`
+# (not part of the SARIF standard).
 # Can obtain from bash via `date +"%Y%m%dT%H%M%SZ"``
 DATETIME_FORMAT = "%Y%m%dT%H%M%SZ"
 DATETIME_REGEX = r"\d{8}T\d{6}Z"
@@ -115,6 +116,14 @@ def _add_filter_stats(accumulator, filter_stats):
     return accumulator
 
 
+def _get_author_mail_from_blame_info(blame_info):
+    return (
+        blame_info.get("author-mail", None) or blame_info.get("committer-mail", None)
+        if blame_info
+        else None
+    )
+
+
 class SarifRun:
     """
     Class to hold a run object from a SARIF file (an entry in the top-level "runs" list
@@ -128,7 +137,7 @@ class SarifRun:
         self.run_data = run_data
         self._path_prefixes_upper = None
         self._cached_records = None
-        self._filter = BlameFilter()
+        self._filter = GeneralFilter()
         self._default_line_number = None
         conversion = run_data.get("conversion", None)
         if conversion:
@@ -195,35 +204,23 @@ class SarifRun:
         self._default_line_number = "1"
         self._cached_records = None
 
-    def init_blame_filter(
+    def init_general_filter(
         self,
         filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
+        include_filters,
+        exclude_filters
     ):
         """
-        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
-        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
-        blame information.
-        If only inclusion criteria are provided, only issues matching the inclusion criteria
-        are considered.
-        If only exclusion criteria are provided, only issues not matching the exclusion criteria
-        are considered.
+        Set up general filtering.  This is applied to all fields in results array in each SARIF file.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria are considered.
         If both are provided, only issues matching the inclusion criteria and not matching the
         exclusion criteria are considered.
-        include_substrings = substrings of author_mail to filter issues for inclusion.
-        include_regexes = regular expressions for author_mail to filter issues for inclusion.
-        exclude_substrings = substrings of author_mail to filter issues for exclusion.
-        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
         """
-        self._filter.init_blame_filter(
+        self._filter.init_filter(
             filter_description,
-            include_substrings,
-            include_regexes,
-            exclude_substrings,
-            exclude_regexes,
+            include_filters,
+            exclude_filters
         )
         # Clear the unfiltered records cached by get_records() above.
         self._cached_records = None
@@ -335,7 +332,7 @@ class SarifRun:
             else f"{error_id} {message}",
         }
         if include_blame_info:
-            record["Author"] = get_author_mail_from_blame_info(
+            record["Author"] = _get_author_mail_from_blame_info(
                 result.get("properties", {}).get("blame", None)
             )
 
@@ -432,36 +429,24 @@ class SarifFile:
         for run in self.runs:
             run.init_default_line_number_1()
 
-    def init_blame_filter(
+    def init_general_filter(
         self,
         filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
+        include_filters,
+        exclude_filters
     ):
         """
-        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
-        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
-        blame information.
-        If only inclusion criteria are provided, only issues matching the inclusion criteria
-        are considered.
-        If only exclusion criteria are provided, only issues not matching the exclusion criteria
-        are considered.
+        Set up general filtering.  This is applied to all fields in results array in each SARIF file.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria are considered.
         If both are provided, only issues matching the inclusion criteria and not matching the
         exclusion criteria are considered.
-        include_substrings = substrings of author_mail to filter issues for inclusion.
-        include_regexes = regular expressions for author_mail to filter issues for inclusion.
-        exclude_substrings = substrings of author_mail to filter issues for exclusion.
-        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
         """
         for run in self.runs:
-            run.init_blame_filter(
+            run.init_general_filter(
                 filter_description,
-                include_substrings,
-                include_regexes,
-                exclude_substrings,
-                exclude_regexes,
+                include_filters,
+                exclude_filters
             )
 
     def get_abs_file_path(self) -> str:
@@ -650,44 +635,30 @@ class SarifFileSet:
         for input_file in self.files:
             input_file.init_default_line_number_1()
 
-    def init_blame_filter(
+    def init_general_filter(
         self,
         filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
+        include_filters,
+        exclude_filters
     ):
         """
-        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
-        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
-        blame information.
-        If only inclusion criteria are provided, only issues matching the inclusion criteria
-        are considered.
-        If only exclusion criteria are provided, only issues not matching the exclusion criteria
-        are considered.
+        Set up general filtering.  This is applied to all fields in results array in each SARIF file.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria are considered.
         If both are provided, only issues matching the inclusion criteria and not matching the
         exclusion criteria are considered.
-        include_substrings = substrings of author_mail to filter issues for inclusion.
-        include_regexes = regular expressions for author_mail to filter issues for inclusion.
-        exclude_substrings = substrings of author_mail to filter issues for exclusion.
-        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
         """
         for subdir in self.subdirs:
-            subdir.init_blame_filter(
+            subdir.init_general_filter(
                 filter_description,
-                include_substrings,
-                include_regexes,
-                exclude_substrings,
-                exclude_regexes,
+                include_filters,
+                exclude_filters
             )
         for input_file in self.files:
-            input_file.init_blame_filter(
+            input_file.init_general_filter(
                 filter_description,
-                include_substrings,
-                include_regexes,
-                exclude_substrings,
-                exclude_regexes,
+                include_filters,
+                exclude_filters
             )
 
     def add_dir(self, sarif_file_set):

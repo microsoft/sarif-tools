@@ -150,12 +150,36 @@ sarif blame -o "C:\temp\sarif_files_with_blame_info" -c "C:\code\my_source_repo"
 
 If the current working directory is the git repository, the `-c` argument can be omitted.
 
-See [Blame filtering](#blame-filtering) below for the format of the blame information that gets added to the SARIF files.
+Blame information is added to the property bag of each `result` object for which it was successfully obtained.  The keys and values used are as in the [git blame porcelain format](https://git-scm.com/docs/git-blame#_the_porcelain_format).  E.g.:
+
+```json
+{
+  "ruleId": "SM00702",
+  ...
+  "properties": {
+    "blame": {
+      "author": "aperson",
+      "author-mail": "<aperson@acompany.com>",
+      "author-time": "1350899798",
+      "author-tz": "+0000",
+      "committer": "aperson",
+      "committer-mail": "<aperson@acompany.com>",
+      "committer-time": "1350899798",
+      "committer-tz": "+0000",
+      "summary": "blah blah commit comment blah",
+      "boundary": true,
+      "filename": "src/net/myproject/mypackage/MyClass.java"
+    }
+  }
+}
+```
+
+Note that the bare `boundary` key is given the automatic value `true`.
 
 #### codeclimate
 
 ```plain
-usage: sarif codeclimate [-h] [--output PATH] [--blame-filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir ...]
+usage: sarif codeclimate [-h] [--output PATH] [--filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir ...]
 
 Write a JSON representation in Code Climate format of SARIF file(s) for viewing as a Code Quality report in GitLab UI
 
@@ -166,8 +190,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output PATH, -o PATH
                         Output file or directory
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
   --autotrim, -a        Strip off the common prefix of paths in the CSV output
   --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
 ```
@@ -176,12 +200,12 @@ Write out a JSON file of Code Climate tool format from [a set of] SARIF files.
 This can then be published as a Code Quality report artefact in a GitLab pipeline and shown in GitLab UI for merge requests.
 
 The JSON output can also be filtered using the blame information; see
-[Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
+[Filtering](#filtering) below for how to use the `--filter` option.
 
 #### copy
 
 ```plain
-usage: sarif copy [-h] [--output FILE] [--blame-filter FILE] [--timestamp] [file_or_dir [file_or_dir ...]]
+usage: sarif copy [-h] [--output FILE] [--filter FILE] [--timestamp] [file_or_dir [file_or_dir ...]]
 
 Write a new SARIF file containing optionally-filtered data from other SARIF file(s)
 
@@ -192,14 +216,14 @@ optional arguments:
   -h, --help            show this help message and exit
   --output FILE, -o FILE
                         Output file
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
   --timestamp, -t       Append current timestamp to output filename in the "yyyymmddThhmmssZ" format used by the `sarif trend` command
 ```
 
 Write a new SARIF file containing optionally-filtered data from an existing SARIF file or multiple
 SARIF files.  The resulting file contains each run from the original SARIF files back-to-back.
-The results can be filtered (see [Blame filtering](#blame-filtering) below), in which case only
+The results can be filtered (see [Filtering](#filtering) below), in which case only
 those results from the original SARIF files that meet the filter are included; the output file
 contains no information about the excluded records.  If a run in the original file was empty,
 or all its results are filtered out, the empty run is still included.
@@ -217,7 +241,7 @@ a build process into a single file that can be more easily stored and processed 
 #### csv
 
 ```plain
-usage: sarif csv [-h] [--output PATH] [--blame-filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
+usage: sarif csv [-h] [--output PATH] [--filter FILE] [--autotrim] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 Write a CSV file listing the issues from the SARIF files(s) specified
 
@@ -228,8 +252,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output PATH, -o PATH
                         Output file or directory
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
   --autotrim, -a        Strip off the common prefix of paths in the CSV output
   --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
 ```
@@ -254,12 +278,12 @@ If the SARIF file(s) contain blame information (as added by the `blame` command)
 includes an "Author" column indicating who last modified the line in question.
 
 The CSV output can also be filtered using the same blame information; see
-[Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
+[Filtering](#filtering) below for how to use the `--filter` option.
 
 #### diff
 
 ```plain
-usage: sarif diff [-h] [--output FILE] [--blame-filter FILE] old_file_or_dir new_file_or_dir
+usage: sarif diff [-h] [--output FILE] [--filter FILE] old_file_or_dir new_file_or_dir
 
 Find the difference between two [sets of] SARIF files
 
@@ -271,8 +295,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output FILE, -o FILE
                         Output file
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
 ```
 
 Print the difference between two [sets of] SARIF files.
@@ -358,12 +382,12 @@ output JSON file, all new locations are written, but when writing output to the 
 of three locations are shown.  Note that there can be some false positives here, if line numbers
 have changed.
 
-See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
+See [Filtering](#filtering) below for how to use the `--filter` option.
 
 #### emacs
 
 ```plain
-usage: sarif emacs [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
+usage: sarif emacs [-h] [--output PATH] [--filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 Write a representation of SARIF file(s) for viewing in emacs
 
@@ -374,8 +398,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output PATH, -o PATH
                         Output file or directory
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
   --no-autotrim, -n     Do not strip off the common prefix of paths in the output document
   --image IMAGE         Image to include at top of file - SARIF logo by default
   --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
@@ -384,7 +408,7 @@ optional arguments:
 #### html
 
 ```plain
-usage: sarif html [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
+usage: sarif html [-h] [--output PATH] [--filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 Write an HTML representation of SARIF file(s) for viewing in a web browser
 
@@ -395,8 +419,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output PATH, -o PATH
                         Output file or directory
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
   --no-autotrim, -n     Do not strip off the common prefix of paths in the output document
   --image IMAGE         Image to include at top of file - SARIF logo by default
   --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
@@ -412,7 +436,7 @@ Use the `--trim` option to strip specific prefixes from the paths, to make the g
 
 Use the `--image` option to provide a header image for the top of the HTML page.  The image is embedded into the HTML, so the HTML document remains a portable standalone file.
 
-See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
+See [Filtering](#filtering) below for how to use the `--filter` option.
 
 #### info
 
@@ -470,7 +494,7 @@ sarif ls "C:\temp\sarif_files" "C:\temp\sarif_with_date"
 #### summary
 
 ```plain
-usage: sarif summary [-h] [--output PATH] [--blame-filter FILE] [file_or_dir [file_or_dir ...]]
+usage: sarif summary [-h] [--output PATH] [--filter FILE] [file_or_dir [file_or_dir ...]]
 
 Write a text summary with the counts of issues from the SARIF files(s) specified
 
@@ -481,8 +505,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output PATH, -o PATH
                         Output file or directory
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
 ```
 
 Print a summary of the issues in one or more SARIF file(s), grouped by severity and then ordered by number of occurrences.
@@ -499,12 +523,12 @@ When no output directory or file is specified, the overall summary is printed to
 sarif summary "C:\temp\sarif_files\devskim_myapp.sarif"
 ```
 
-See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
+See [Filtering](#filtering) below for how to use the `--filter` option.
 
 #### trend
 
 ```plain
-usage: sarif trend [-h] [--output FILE] [--blame-filter FILE] [--dateformat {dmy,mdy,ymd}] [file_or_dir [file_or_dir ...]]
+usage: sarif trend [-h] [--output FILE] [--filter FILE] [--dateformat {dmy,mdy,ymd}] [file_or_dir [file_or_dir ...]]
 
 Write a CSV file with time series data from SARIF files with "yyyymmddThhmmssZ" timestamps in their filenames
 
@@ -515,8 +539,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output FILE, -o FILE
                         Output file
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
   --dateformat {dmy,mdy,ymd}, -f {dmy,mdy,ymd}
                         Date component order to use in output CSV. Default is `dmy`
 ```
@@ -530,7 +554,7 @@ The CSV can be loaded in Microsoft Excel for graphing and trend analysis.
 sarif trend -o timeline.csv "C:\temp\sarif_with_date" --dateformat dmy
 ```
 
-See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
+See [Filtering](#filtering) below for how to use the `--filter` option.
 
 #### usage
 
@@ -550,7 +574,7 @@ Print usage and exit.
 #### word
 
 ```plain
-usage: sarif word [-h] [--output PATH] [--blame-filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
+usage: sarif word [-h] [--output PATH] [--filter FILE] [--no-autotrim] [--image IMAGE] [--trim PREFIX] [file_or_dir [file_or_dir ...]]
 
 Produce MS Word .docx summaries of the SARIF files specified
 
@@ -561,8 +585,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --output PATH, -o PATH
                         Output file or directory
-  --blame-filter FILE, -b FILE
-                        Specify the blame filter file to apply. See README for format.
+  --filter FILE, -b FILE
+                        Specify the filter file to apply. See README for format.
   --no-autotrim, -n     Do not strip off the common prefix of paths in the output document
   --image IMAGE         Image to include at top of file - SARIF logo by default
   --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
@@ -589,86 +613,74 @@ Use the `--trim` option to strip specific prefixes from the paths, to make the g
 
 Use the `--image` option to provide a header image for the top of the Word document.
 
-See [Blame filtering](#blame-filtering) below for how to use the `--blame-filter` option.
+See [Filtering](#filtering) below for how to use the `--filter` option.
 
-## Blame filtering
+## Filtering
 
-Use the `sarif blame` command to augment a SARIF file or multiple SARIF files with blame information.
-
-Blame information is added to the property bag of each `result` object for which it was successfully obtained.  The keys and values used are as in the [git blame porcelain format](https://git-scm.com/docs/git-blame#_the_porcelain_format).  E.g.:
-
-```json
-{
-  "ruleId": "SM00702",
-  ...
-  "properties": {
-    "blame": {
-      "author": "aperson",
-      "author-mail": "<aperson@acompany.com>",
-      "author-time": "1350899798",
-      "author-tz": "+0000",
-      "committer": "aperson",
-      "committer-mail": "<aperson@acompany.com>",
-      "committer-time": "1350899798",
-      "committer-tz": "+0000",
-      "summary": "blah blah commit comment blah",
-      "boundary": true,
-      "filename": "src/net/myproject/mypackage/MyClass.java"
-    }
-  }
-}
-```
-
-Note that the bare `boundary` key is given the automatic value `true`.
-
-This blame data can then be used for filtering and summarising via the `--blame-filter` option available for various commands.  This option requires a path to a filter-list YAML file, containing a list of patterns and substrings to match against the blame information author email.  The format of a filter-list file is as follows:
+The data in each `result` object can then be used for filtering via the `--filter` option available for various commands.  This option requires a path to a filter-list YAML file, containing a list of patterns and substrings to match against data in a SARIF file.  The format of a filter-list file is as follows:
 
 ```yaml
 # Lines beginning with # are interpreted as comments and ignored.
 # Optional description for the filter.  If no title is specified, the filter file name is used.
 description: Example filter from README.md
 
-# Lines under `include` are interpreted as inclusion substrings.  
+# Items in `include` list are interpreted as inclusion filtering rules. 
+# Items are treated with OR operator, the filtered results includes objects matching any rule.
+# Each item can be one rule or a list of rules, in the latter case rules in the list are treated with AND operator - all rules must match.
 include:
-  # The following line includes issues whose author-mail field contains "@microsoft.com". 
+  # The following line includes issues whose author-mail field contains "@microsoft.com" AND found in Java files. 
   # Values with special characters `\:;_()$%^@,` must be enclosed in quotes (single or double):
-  - "@microsoft.com"
-  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are included.  Use ^ and $ to match the whole author-mail field.
-  - /^<myname.*\.com>$/
+  - author-mail: "@microsoft.com"
+    locations[*].physicalLocation.artifactLocation.uri: "*.java"
+  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose committer-mail field includes a string matching the regular expression are included.  Use ^ and $ to match the whole committer-mail field.
+  - committer-mail: "/^<myname.*\\.com>$/"
 
-# Lines under `exclude` are interpreted as exclusion substrings.
+# Lines under `exclude` are interpreted as exclusion filtering rules.
 exclude:
-  # The following line excludes issues whose author-mail field contains "bot@microsoft.com".
-  - bot@microsoft.com
-  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose author-mail field includes a string matching the regular expression are excluded.  Use ^ and $ to match the whole author-mail field.  E.g. the following pattern excludes all issues whose author-mail field contains a GUID.
-  - '/[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/'
+  # The following line excludes issues whose location is in test Java files with names starting with the "Test" prefix.
+  - location: "Test*.java"
+  # The value for the field can be empty, in this case only existence of the field in 
+  - suppression:
 ```
 
 Here's an example of a filter-file that includes issues on lines changed by an `@microsoft.com` email address or a `myname.SOMETHING.com` email address, but not if those email addresses end in `bot@microsoft.com` or contain a GUID.  It's the same as the above example, with comments stripped out.
 
-```plain
+```yaml
 description: Example filter from README.md
 include:
-  - "@microsoft.com"
-  - /^<myname.*\.com>$/
+  - author-mail: "@microsoft.com"
+  - author-mail: "/myname\\..*\\.com/"
 exclude:
-  - bot@microsoft.com
-  - '/[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}/'
+  - author-mail: bot@microsoft.com
+  - author-mail: '/[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}\@microsoft.com/'
 ```
 
-All matching is case insensitive, because email addresses are.  Whitespace at the start and end of lines is ignored, which also means that line ending characters don't matter.  The blame filter file must be UTF-8 encoded (including plain ASCII7).
+Field names must be specified in [JSONPath notation](https://goessner.net/articles/JsonPath/).
+
+For commonly used fields the following shortcuts are defined:
+| Shortcut | Full JSONPath |
+| -------- | -------- |
+| author | properties.blame.author |
+| author-mail | properties.blame.author-mail |
+| committer | properties.blame.committer |
+| committer-mail | properties.blame.committer-mail |
+| location | locations[*].physicalLocation.artifactLocation.uri |
+| rule | ruleId |
+| suppression | suppressions[*].kind |
+
+For the field `uri` (e.g. in `locations[*].physicalLocation.artifactLocation.uri`) file name wildcard characters can be used as it represents a file location:
+- `?` - a single occurrence of any character in a directory or file name
+- `*` - zero or more occurrences of any character in a directory or file name
+- `**` - zero or more occurrences across multiple directory levels
+
+E.g.
+- `tests/Test???.js`
+- `src/js/*.js`
+- `src/js/**/*.js`
+
+All matching is case insensitive.  Whitespace at the start and end of lines is ignored, which also means that line ending characters don't matter.  The filter file must be UTF-8 encoded (including plain ASCII7).
 
 If there are no inclusion patterns, all issues are included except for those matching the exclusion patterns.  If there are inclusion patterns, only issues matching the inclusion patterns are included.  If an issue matches one or more inclusion patterns and also at least one exclusion pattern, it is excluded.
-
-Sometimes, there may be issues in the SARIF file to which the filter cannot be applied, because blame information is not available.  This can be for two reasons: either there is no blame information recorded for the file in which the issue occurred, or the issue location lacks a line number (or specifies line number 1 as a placeholder) so that blame information cannot be correlated to the issue.  These issues are included by default.  To identify which issues these are, create a filter file that excludes everything to which the filter can be applied:
-
-```plain
-description: Exclude everything filterable
-exclude:
-  - /.*/
-```
-
-Then run a `sarif` command using this filter file as the `--blame-filter` to see the default-included issues.
 
 ## Usage as a Python library
 
@@ -759,11 +771,11 @@ These fields and methods allow access to the underlying information about the SA
 
 Call `init_path_prefix_stripping(autotrim, path_prefixes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up path filtering, either automatically removing the longest common prefix (`autotrim=True`) or removing specific prefixes (`autotrim=False` and a list of strings in `path_prefixes`).
 
-#### Blame filtering API
+#### Filtering API
 
-Call `init_blame_filter(filter_description, include_substrings, include_regexes, exclude_substrings, exclude_regexes)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up blame filtering.  `filter_description` is a string and the other parameters are lists of strings (with no `/` characters around the regular expressions).  They correspond in an obvious way to the filter file contents described in [Blame filtering](#blame-filtering) above.
+Call `init_general_filter(filter_description, include_filters, exclude_filters)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up filtering.  `filter_description` is a string and the other parameters are lists of inclusion and exclusion rules.  They correspond in an obvious way to the filter file contents described in [Filtering](#filtering) above.
 
-Call `get_filter_stats()` to retrieve the filter stats after reading the results or records from sarif files.  It returns `None` if there is no filter, or otherwise a `sarif_file.FilterStats` object with integer fields `filtered_in_result_count`, `filtered_out_result_count`, `missing_blame_count` and `unconvincing_line_number_count`.  Call `to_string()` on the `FilterStats` object for a readable representation of these statistics, which also includes the filter file name or description (`filter_description` field).
+Call `get_filter_stats()` to retrieve the filter stats after reading the results or records from sarif files.  It returns `None` if there is no filter, or otherwise a `sarif_file.FilterStats` object with integer fields `filtered_in_result_count`, `filtered_out_result_count`.  Call `to_string()` on the `FilterStats` object for a readable representation of these statistics, which also includes the filter file name or description (`filter_description` field).
 
 ## Suggested usage in CI pipelines
 
@@ -803,7 +815,7 @@ sarif copy --timestamp -o artifacts/myapp_alltools_with_blame.sarif
 ```
 
 Download the file `myapp_alltools_with_blame_TIMESTAMP.sarif` that is generated.  Then later you can
-filter the results using the `--blame-filter` argument, or generate graph of code quality over time
+filter the results using the `--filter` argument, or generate graph of code quality over time
 using `sarif trend`.
 
 ## Credits

@@ -7,9 +7,8 @@ from importlib import metadata
 import os
 import sys
 
-import yaml
-
 from sarif import loader, sarif_file
+from sarif.filter.general_filter import load_filter_file
 
 from sarif.operations import (
     blame_op,
@@ -96,11 +95,11 @@ def _create_arg_parser():
 
     for cmd in ["codeclimate", "copy", "csv", "diff", "summary", "html", "emacs", "trend", "word"]:
         subparser[cmd].add_argument(
-            "--blame-filter",
+            "--filter",
             "-b",
             type=str,
             metavar="FILE",
-            help="Specify the blame filter file to apply.  See README for format.",
+            help="Specify the filter file to apply.  See README for format.",
         )
 
     # Command-specific options
@@ -206,47 +205,10 @@ def _check(input_files: sarif_file.SarifFileSet, check_level):
     return ret
 
 
-def _parse_filters(filters, substrings, regexps):
-    for pattern_spec in filters:
-        pattern_spec_len = len(pattern_spec)
-        if (
-                pattern_spec_len > 2
-                and pattern_spec.startswith("/")
-                and pattern_spec.endswith("/")
-        ):
-            regexps.append(pattern_spec[1: pattern_spec_len - 1])
-        else:
-            substrings.append(pattern_spec)
-
-
-def _load_blame_filter_file(file_path):
-    include_substrings = []
-    include_regexps = []
-    exclude_substrings = []
-    exclude_regexps = []
-    try:
-        with (open(file_path, encoding="utf-8") as file_in):
-            yaml_content = yaml.safe_load(file_in)
-            filter_description = yaml_content.get("description", os.path.basename(file_path))
-            _parse_filters(yaml_content.get("include", []), include_substrings, include_regexps)
-            _parse_filters(yaml_content.get("exclude", []), exclude_substrings, exclude_regexps)
-    except yaml.YAMLError as error:
-        raise IOError(
-            f"Cannot read blame filter file {file_path}"
-        ) from error
-    return (
-        filter_description,
-        include_substrings,
-        include_regexps,
-        exclude_substrings,
-        exclude_regexps,
-    )
-
-
-def _init_blame_filtering(input_files, args):
-    if args.blame_filter:
-        filters = _load_blame_filter_file(args.blame_filter)
-        input_files.init_blame_filter(*filters)
+def _init_filtering(input_files, args):
+    if args.filter:
+        filters = load_filter_file(args.filter)
+        input_files.init_general_filter(*filters)
 
 
 def _init_path_prefix_stripping(input_files, args, strip_by_default):
@@ -320,7 +282,7 @@ def _codeclimate(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=False)
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".json")
     codeclimate_op.generate(input_files, output, multiple_file_output)
     return _check(input_files, args.check)
@@ -328,7 +290,7 @@ def _codeclimate(args):
 
 def _copy(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     output = args.output or "out.sarif"
     output_sarif_file_set = copy_op.generate_sarif(
         input_files,
@@ -344,7 +306,7 @@ def _csv(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=False)
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".csv")
     csv_op.generate_csv(input_files, output, multiple_file_output)
     return _check(input_files, args.check)
@@ -353,8 +315,8 @@ def _csv(args):
 def _diff(args):
     original_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
     new_sarif = loader.load_sarif_files(args.new_file_or_dir[0])
-    _init_blame_filtering(original_sarif, args)
-    _init_blame_filtering(new_sarif, args)
+    _init_filtering(original_sarif, args)
+    _init_filtering(new_sarif, args)
     return diff_op.print_diff(original_sarif, new_sarif, args.output, args.check)
 
 
@@ -362,7 +324,7 @@ def _html(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".html")
     html_op.generate_html(input_files, args.image, output, multiple_file_output)
     return _check(input_files, args.check)
@@ -372,7 +334,7 @@ def _emacs(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".txt")
     emacs_op.generate_compile(input_files, output, multiple_file_output)
     return _check(input_files, args.check)
@@ -396,7 +358,7 @@ def _ls(args):
 
 def _summary(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     (output, multiple_file_output) = (None, False)
     if args.output:
         (output, multiple_file_output) = _prepare_output(
@@ -409,7 +371,7 @@ def _summary(args):
 def _trend(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     if args.output:
         _ensure_dir(os.path.dirname(args.output))
         output = args.output
@@ -436,7 +398,7 @@ def _word(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
-    _init_blame_filtering(input_files, args)
+    _init_filtering(input_files, args)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".docx")
     word_op.generate_word_docs_from_sarif_inputs(
         input_files, args.image, output, multiple_file_output

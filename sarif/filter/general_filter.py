@@ -1,151 +1,181 @@
+import os
 import re
-from typing import Optional, Tuple
+from typing import Optional, List
 
-from sarif.filter.filter_stats import FilterStats, load_filter_stats_from_json_camel_case
+import jsonpath_ng.ext
+import yaml
+
+from sarif.filter.filter_stats import FilterStats, \
+    load_filter_stats_from_json_camel_case
+
+# Commonly used fields can be specified using shortcuts
+# instead of full JSON path
+FILTER_SHORTCUTS = {
+    "author": "properties.blame.author",
+    "author-mail": "properties.blame.author-mail",
+    "committer": "properties.blame.committer",
+    "committer-mail": "properties.blame.committer-mail",
+    "location": "locations[*].physicalLocation.artifactLocation.uri",
+    "rule": "ruleId",
+    "suppression": "suppressions[*].kind"
+}
+
+# Some fields can have specific shortcuts to make it easier to write filters
+# For example a file location can be specified using wildcards
+FIELDS_REGEX_SHORTCUTS = {
+    "uri": {
+        "**": ".*",
+        "*": "[^/]*",
+        "?": "."
+    }
+}
 
 
-class BlameFilter:
+def get_filter_function(filter_spec):
+    if filter_spec:
+        filter_len = len(filter_spec)
+        if (
+                filter_len > 2
+                and filter_spec.startswith("/")
+                and filter_spec.endswith("/")
+        ):
+            regex = filter_spec[1: filter_len-1]
+            return lambda value: re.search(regex, value, re.IGNORECASE)
+        else:
+            substring = filter_spec
+            # substring can be empty, in this case "in" returns true
+            # and only existence of the property checked.
+            return lambda value: substring in value
+    return lambda value: True
+
+
+def resolve_field_shortcuts(field_name, field_value_spec):
+    # skip if field_value_spec is a regex
+    if field_value_spec and \
+            not (field_value_spec.startswith("/")
+                 and field_value_spec.endswith("/")):
+        # get last component of field name
+        last_component = field_name.split(".")[-1]
+        if last_component in FIELDS_REGEX_SHORTCUTS:
+            shortcuts = FIELDS_REGEX_SHORTCUTS[last_component]
+            rx = re.compile("|".join(map(re.escape, shortcuts.keys())))
+            field_value_spec = rx.sub(
+                lambda match: shortcuts[match.group(0)], field_value_spec
+            )
+
+            return f"/{field_value_spec}/"
+    return field_value_spec
+
+
+class GeneralFilter:
     """
-    Class that implements blame filtering.
+    Class that implements filtering.
     """
 
     def __init__(self):
         self.filter_stats = None
-        self.include_substrings = None
-        self.include_regexes = None
+        self.include_filters = {}
         self.apply_inclusion_filter = False
-        self.exclude_substrings = None
-        self.exclude_regexes = None
+        self.exclude_filters = {}
         self.apply_exclusion_filter = False
 
-    def init_blame_filter(
+    def init_filter(
         self,
         filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
+        include_filters,
+        exclude_filters
     ):
         """
-        Initialise the blame filter with the given filter patterns.
+        Initialise the filter with the given filter patterns.
         """
         self.filter_stats = FilterStats(filter_description)
-        self.include_substrings = (
-            [s.upper().strip() for s in include_substrings]
-            if include_substrings
-            else None
-        )
-        self.include_regexes = include_regexes[:] if include_regexes else None
-        self.apply_inclusion_filter = bool(
-            self.include_substrings or self.include_regexes
-        )
-        self.exclude_substrings = (
-            [s.upper().strip() for s in exclude_substrings]
-            if exclude_substrings
-            else None
-        )
-        self.exclude_regexes = exclude_regexes[:] if exclude_regexes else None
-        self.apply_exclusion_filter = bool(
-            self.exclude_substrings or self.exclude_regexes
-        )
+        self.include_filters = include_filters
+        self.apply_inclusion_filter = len(include_filters) > 0
+        self.exclude_filters = exclude_filters
+        self.apply_exclusion_filter = len(exclude_filters) > 0
 
     def rehydrate_filter_stats(self, dehydrated_filter_stats, filter_datetime):
         """
-        Restore filter stats from the SARIF file directly, where they were recorded when the filter
-        was previously run.
+        Restore filter stats from the SARIF file directly,
+        where they were recorded when the filter was previously run.
 
-        Note that if init_blame_filter is called, these rehydrated stats are discarded.
+        Note that if init_filter is called,
+        these rehydrated stats are discarded.
         """
         self.filter_stats = load_filter_stats_from_json_camel_case(
-            dehydrated_filter_stats
-        )
+            dehydrated_filter_stats)
         self.filter_stats.filter_datetime = filter_datetime
 
     def _zero_counts(self):
         if self.filter_stats:
             self.filter_stats.reset_counters()
 
-    def _check_include_result(self, author_mail):
-        author_mail_upper = author_mail.upper().strip()
-        matched_include_substrings = None
-        matched_include_regexes = None
-        if self.apply_inclusion_filter:
-            if self.include_substrings:
-                matched_include_substrings = [
-                    s for s in self.include_substrings if s in author_mail_upper
-                ]
-            if self.include_regexes:
-                matched_include_regexes = [
-                    r
-                    for r in self.include_regexes
-                    if re.search(r, author_mail, re.IGNORECASE)
-                ]
-            if (not matched_include_substrings) and (not matched_include_regexes):
-                return False
-        if self.exclude_substrings and any(
-            s in author_mail_upper for s in self.exclude_substrings
-        ):
-            return False
-        if self.exclude_regexes and any(
-            re.search(r, author_mail, re.IGNORECASE) for r in self.exclude_regexes
-        ):
-            return False
-        return {
-            "state": "included",
-            "matchedSubstring": [s.lower() for s in matched_include_substrings]
-            if matched_include_substrings
-            else [],
-            "matchedRegex": [r.lower() for r in matched_include_regexes]
-            if matched_include_regexes
-            else [],
-        }
-
-    def _filter_append(self, filtered_results, result, blame_info):
+    def _filter_append(self, filtered_results: List[dict], result: dict):
         # Remove any existing filter log on the result
         result.setdefault("properties", {}).pop("filtered", None)
-        author_mail = get_author_mail_from_blame_info(blame_info)
-        if author_mail:
-            # First, check inclusion
-            included = self._check_include_result(author_mail)
-            if included:
-                self.filter_stats.filtered_in_result_count += 1
-                included["filter"] = self.filter_stats.filter_description
-                result["properties"]["filtered"] = included
-                filtered_results.append(result)
-            else:
-                (_file_path, line_number) = _read_result_location(result)
-                if line_number == "1" or not line_number:
-                    # Line number is not convincing.  Blame information may be misattributed.
-                    self.filter_stats.unconvincing_line_number_count += 1
-                    result["properties"]["filtered"] = {
-                        "filter": self.filter_stats.filter_description,
-                        "state": "default",
-                        "missing": "line",
-                    }
-                    filtered_results.append(result)
-                else:
-                    self.filter_stats.filtered_out_result_count += 1
-        else:
-            self.filter_stats.missing_blame_count += 1
-            # Result did not contain complete blame information, so don't filter it out.
-            result["properties"]["filtered"] = {
-                "filter": self.filter_stats.filter_description,
-                "state": "default",
-                "missing": "blame",
-            }
-            filtered_results.append(result)
 
-    def filter_results(self, results):
+        matched_include_filters = []
+        if self.apply_inclusion_filter:
+            matched_include_filters = \
+                self._filter_result(result, self.include_filters)
+            if not matched_include_filters:
+                return
+
+        if self.apply_exclusion_filter:
+            if self._filter_result(result, self.exclude_filters):
+                self.filter_stats.filtered_out_result_count += 1
+                return
+
+        included = {
+            "state": "included",
+            "matchedFilter": matched_include_filters,
+        }
+        self.filter_stats.filtered_in_result_count += 1
+        included["filter"] = self.filter_stats.filter_description
+        result["properties"]["filtered"] = included
+
+        filtered_results.append(result)
+
+    def _filter_result(self, result: dict, filters: List[str]) -> List[dict]:
+        matched_filters = []
+        if filters:
+            # filters contains rules which treated as OR.
+            # if any rule matches, the record is selected.
+            for filter_spec in filters:
+                # filter_spec contains rules which treated as AND.
+                # all rules must match to select the record.
+                matched = True
+                for (prop_path, prop_value_spec) in filter_spec.items():
+                    resolved_prop_path = \
+                        FILTER_SHORTCUTS.get(prop_path, prop_path)
+                    jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
+
+                    found_results = jsonpath_expr.find(result)
+                    if found_results:
+                        value = found_results[0].value
+                        value_spec = \
+                            resolve_field_shortcuts(resolved_prop_path,
+                                                    prop_value_spec)
+                        filter_function = get_filter_function(value_spec)
+                        if filter_function(value):
+                            continue
+                    matched = False
+                    break
+                if matched:
+                    matched_filters.append(filter_spec)
+        return matched_filters
+
+    def filter_results(self, results: List[dict]) -> List[dict]:
         """
-        Apply this blame filter to a list of results, return the results that pass the filter
+        Apply this filter to a list of results,
+        return the results that pass the filter
         and as a side-effect, update the filter stats.
         """
         if self.apply_inclusion_filter or self.apply_exclusion_filter:
             self._zero_counts()
             ret = []
             for result in results:
-                blame_info = result.get("properties", {}).get("blame", None)
-                self._filter_append(ret, result, blame_info)
+                self._filter_append(ret, result)
             return ret
         # No inclusion or exclusion patterns
         return results
@@ -157,43 +187,21 @@ class BlameFilter:
         return self.filter_stats
 
 
-def get_author_mail_from_blame_info(blame_info):
+def load_filter_file(file_path):
+    """
+    Load a YAML filter file, return the filter description and the filters.
+    """
+    try:
+        file_name = os.path.basename(file_path)
+        with (open(file_path, encoding="utf-8") as file_in):
+            yaml_content = yaml.safe_load(file_in)
+            filter_description = yaml_content.get("description", file_name)
+            include_filters = yaml_content.get("include", {})
+            exclude_filters = yaml_content.get("exclude", {})
+    except yaml.YAMLError as error:
+        raise IOError(f"Cannot read filter file {file_path}") from error
     return (
-        blame_info.get("author-mail", None) or blame_info.get("committer-mail", None)
-        if blame_info
-        else None
+        filter_description,
+        include_filters,
+        exclude_filters,
     )
-
-
-def _read_result_location(result) -> Tuple[str, str]:
-    """
-    Extract the file path and line number strings from the Result.
-    Tools store this in different ways, so this function tries a few different JSON locations.
-    """
-    file_path = None
-    line_number = None
-    locations = result.get("locations", [])
-    if locations:
-        location = locations[0]
-        physical_location = location.get("physicalLocation", {})
-        # SpotBugs has some errors with no line number so deal with them by just leaving it at 1
-        line_number = physical_location.get("region", {}).get("startLine", None)
-        # For file name, first try the location written by DevSkim
-        file_path = (
-            location.get("physicalLocation", {})
-            .get("address", {})
-            .get("fullyQualifiedName", None)
-        )
-        if not file_path:
-            # Next try the physical location written by MobSF and by SpotBugs (for some errors)
-            file_path = (
-                location.get("physicalLocation", {})
-                .get("artifactLocation", {})
-                .get("uri", None)
-            )
-        if not file_path:
-            logical_locations = location.get("logicalLocations", None)
-            if logical_locations:
-                # Finally, try the logical location written by SpotBugs for some errors
-                file_path = logical_locations[0].get("fullyQualifiedName", None)
-    return (file_path, line_number)
