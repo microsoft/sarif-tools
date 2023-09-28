@@ -1,6 +1,6 @@
 import pytest
 from sarif.filter.general_filter import GeneralFilter, load_filter_file
-from sarif.filter.filter_stats import load_filter_stats_from_json_camel_case
+from sarif.filter.filter_stats import load_filter_stats_from_json
 
 
 class TestGeneralFilter:
@@ -30,7 +30,7 @@ class TestGeneralFilter:
 
     def test_zero_counts(self):
         gf = GeneralFilter()
-        gf.filter_stats = load_filter_stats_from_json_camel_case({
+        gf.filter_stats = load_filter_stats_from_json({
             "filter": "test filter",
             "in": 10,
             "out": 5

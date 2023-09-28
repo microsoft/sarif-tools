@@ -655,7 +655,8 @@ exclude:
   - author-mail: '/[0-9A-F]{8}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{4}[-][0-9A-F]{12}\@microsoft.com/'
 ```
 
-Field names must be specified in [JSONPath notation](https://goessner.net/articles/JsonPath/).
+Field names must be specified in [JSONPath notation](https://goessner.net/articles/JsonPath/)
+accessing data in the [SARIF `result` object](https://docs.oasis-open.org/sarif/sarif/v2.1.0/cs01/sarif-v2.1.0-cs01.html#_Toc16012594).
 
 For commonly used fields the following shortcuts are defined:
 | Shortcut | Full JSONPath |
@@ -678,7 +679,7 @@ E.g.
 - `src/js/*.js`
 - `src/js/**/*.js`
 
-All matching is case insensitive.  Whitespace at the start and end of lines is ignored, which also means that line ending characters don't matter.  The filter file must be UTF-8 encoded (including plain ASCII7).
+All matching is case insensitive, because email addresses are.  Whitespace at the start and end of lines is ignored, which also means that line ending characters don't matter.  The filter file must be UTF-8 encoded (including plain ASCII7).
 
 If there are no inclusion patterns, all issues are included except for those matching the exclusion patterns.  If there are inclusion patterns, only issues matching the inclusion patterns are included.  If an issue matches one or more inclusion patterns and also at least one exclusion pattern, it is excluded.
 

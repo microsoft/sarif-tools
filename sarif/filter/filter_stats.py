@@ -70,9 +70,10 @@ class FilterStats:
         }
 
 
-def load_filter_stats_from_json_camel_case(json_data):
+def load_filter_stats_from_json(json_data):
     """
-    Load filter stats from a SARIF file property bag
+    Load filter stats from a SARIF file property bag using camelCase naming
+    as per SARIF standard section 3.8.1 (Property Bags).
     """
     ret = None
     if json_data:

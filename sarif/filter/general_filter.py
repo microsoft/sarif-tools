@@ -6,7 +6,7 @@ import jsonpath_ng.ext
 import yaml
 
 from sarif.filter.filter_stats import FilterStats, \
-    load_filter_stats_from_json_camel_case
+    load_filter_stats_from_json
 
 # Commonly used fields can be specified using shortcuts
 # instead of full JSON path
@@ -39,7 +39,7 @@ def get_filter_function(filter_spec):
                 and filter_spec.startswith("/")
                 and filter_spec.endswith("/")
         ):
-            regex = filter_spec[1: filter_len-1]
+            regex = filter_spec[1:-1]
             return lambda value: re.search(regex, value, re.IGNORECASE)
         else:
             substring = filter_spec
@@ -49,7 +49,7 @@ def get_filter_function(filter_spec):
     return lambda value: True
 
 
-def resolve_field_shortcuts(field_name, field_value_spec):
+def _convert_glob_to_regex(field_name, field_value_spec):
     # skip if field_value_spec is a regex
     if field_value_spec and \
             not (field_value_spec.startswith("/")
@@ -102,7 +102,7 @@ class GeneralFilter:
         Note that if init_filter is called,
         these rehydrated stats are discarded.
         """
-        self.filter_stats = load_filter_stats_from_json_camel_case(
+        self.filter_stats = load_filter_stats_from_json(
             dehydrated_filter_stats)
         self.filter_stats.filter_datetime = filter_datetime
 
@@ -154,7 +154,7 @@ class GeneralFilter:
                     if found_results:
                         value = found_results[0].value
                         value_spec = \
-                            resolve_field_shortcuts(resolved_prop_path,
+                            _convert_glob_to_regex(resolved_prop_path,
                                                     prop_value_spec)
                         filter_function = get_filter_function(value_spec)
                         if filter_function(value):
