@@ -28,15 +28,13 @@ class FilterStats:
         """
         if other_filter_stats:
             if other_filter_stats.filter_description and (
-                other_filter_stats.filter_description !=
-                    self.filter_description
+                other_filter_stats.filter_description != self.filter_description
             ):
-                self.filter_description += \
-                    f", {other_filter_stats.filter_description}"
-            self.filtered_in_result_count += \
-                other_filter_stats.filtered_in_result_count
-            self.filtered_out_result_count += \
+                self.filter_description += f", {other_filter_stats.filter_description}"
+            self.filtered_in_result_count += other_filter_stats.filtered_in_result_count
+            self.filtered_out_result_count += (
                 other_filter_stats.filtered_out_result_count
+            )
 
     def __str__(self):
         """

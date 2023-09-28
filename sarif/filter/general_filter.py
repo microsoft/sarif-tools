@@ -5,8 +5,7 @@ from typing import Optional, List
 import jsonpath_ng.ext
 import yaml
 
-from sarif.filter.filter_stats import FilterStats, \
-    load_filter_stats_from_json
+from sarif.filter.filter_stats import FilterStats, load_filter_stats_from_json
 
 # Commonly used fields can be specified using shortcuts
 # instead of full JSON path
@@ -17,28 +16,18 @@ FILTER_SHORTCUTS = {
     "committer-mail": "properties.blame.committer-mail",
     "location": "locations[*].physicalLocation.artifactLocation.uri",
     "rule": "ruleId",
-    "suppression": "suppressions[*].kind"
+    "suppression": "suppressions[*].kind",
 }
 
 # Some fields can have specific shortcuts to make it easier to write filters
 # For example a file location can be specified using wildcards
-FIELDS_REGEX_SHORTCUTS = {
-    "uri": {
-        "**": ".*",
-        "*": "[^/]*",
-        "?": "."
-    }
-}
+FIELDS_REGEX_SHORTCUTS = {"uri": {"**": ".*", "*": "[^/]*", "?": "."}}
 
 
 def get_filter_function(filter_spec):
     if filter_spec:
         filter_len = len(filter_spec)
-        if (
-                filter_len > 2
-                and filter_spec.startswith("/")
-                and filter_spec.endswith("/")
-        ):
+        if filter_len > 2 and filter_spec.startswith("/") and filter_spec.endswith("/"):
             regex = filter_spec[1:-1]
             return lambda value: re.search(regex, value, re.IGNORECASE)
         else:
@@ -51,9 +40,9 @@ def get_filter_function(filter_spec):
 
 def _convert_glob_to_regex(field_name, field_value_spec):
     # skip if field_value_spec is a regex
-    if field_value_spec and \
-            not (field_value_spec.startswith("/")
-                 and field_value_spec.endswith("/")):
+    if field_value_spec and not (
+        field_value_spec.startswith("/") and field_value_spec.endswith("/")
+    ):
         # get last component of field name
         last_component = field_name.split(".")[-1]
         if last_component in FIELDS_REGEX_SHORTCUTS:
@@ -79,12 +68,7 @@ class GeneralFilter:
         self.exclude_filters = {}
         self.apply_exclusion_filter = False
 
-    def init_filter(
-        self,
-        filter_description,
-        include_filters,
-        exclude_filters
-    ):
+    def init_filter(self, filter_description, include_filters, exclude_filters):
         """
         Initialise the filter with the given filter patterns.
         """
@@ -102,8 +86,7 @@ class GeneralFilter:
         Note that if init_filter is called,
         these rehydrated stats are discarded.
         """
-        self.filter_stats = load_filter_stats_from_json(
-            dehydrated_filter_stats)
+        self.filter_stats = load_filter_stats_from_json(dehydrated_filter_stats)
         self.filter_stats.filter_datetime = filter_datetime
 
     def _zero_counts(self):
@@ -116,8 +99,7 @@ class GeneralFilter:
 
         matched_include_filters = []
         if self.apply_inclusion_filter:
-            matched_include_filters = \
-                self._filter_result(result, self.include_filters)
+            matched_include_filters = self._filter_result(result, self.include_filters)
             if not matched_include_filters:
                 return
 
@@ -145,17 +127,16 @@ class GeneralFilter:
                 # filter_spec contains rules which treated as AND.
                 # all rules must match to select the record.
                 matched = True
-                for (prop_path, prop_value_spec) in filter_spec.items():
-                    resolved_prop_path = \
-                        FILTER_SHORTCUTS.get(prop_path, prop_path)
+                for prop_path, prop_value_spec in filter_spec.items():
+                    resolved_prop_path = FILTER_SHORTCUTS.get(prop_path, prop_path)
                     jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
 
                     found_results = jsonpath_expr.find(result)
                     if found_results:
                         value = found_results[0].value
-                        value_spec = \
-                            _convert_glob_to_regex(resolved_prop_path,
-                                                    prop_value_spec)
+                        value_spec = _convert_glob_to_regex(
+                            resolved_prop_path, prop_value_spec
+                        )
                         filter_function = get_filter_function(value_spec)
                         if filter_function(value):
                             continue
@@ -193,15 +174,11 @@ def load_filter_file(file_path):
     """
     try:
         file_name = os.path.basename(file_path)
-        with (open(file_path, encoding="utf-8") as file_in):
+        with open(file_path, encoding="utf-8") as file_in:
             yaml_content = yaml.safe_load(file_in)
             filter_description = yaml_content.get("description", file_name)
             include_filters = yaml_content.get("include", {})
             exclude_filters = yaml_content.get("exclude", {})
     except yaml.YAMLError as error:
         raise IOError(f"Cannot read filter file {file_path}") from error
-    return (
-        filter_description,
-        include_filters,
-        exclude_filters,
-    )
+    return filter_description, include_filters, exclude_filters

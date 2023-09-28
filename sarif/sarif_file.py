@@ -204,12 +204,7 @@ class SarifRun:
         self._default_line_number = "1"
         self._cached_records = None
 
-    def init_general_filter(
-        self,
-        filter_description,
-        include_filters,
-        exclude_filters
-    ):
+    def init_general_filter(self, filter_description, include_filters, exclude_filters):
         """
         Set up general filtering.  This is applied to all fields in results array in each SARIF file.
         If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
@@ -217,11 +212,7 @@ class SarifRun:
         If both are provided, only issues matching the inclusion criteria and not matching the
         exclusion criteria are considered.
         """
-        self._filter.init_filter(
-            filter_description,
-            include_filters,
-            exclude_filters
-        )
+        self._filter.init_filter(filter_description, include_filters, exclude_filters)
         # Clear the unfiltered records cached by get_records() above.
         self._cached_records = None
 
@@ -429,12 +420,7 @@ class SarifFile:
         for run in self.runs:
             run.init_default_line_number_1()
 
-    def init_general_filter(
-        self,
-        filter_description,
-        include_filters,
-        exclude_filters
-    ):
+    def init_general_filter(self, filter_description, include_filters, exclude_filters):
         """
         Set up general filtering.  This is applied to all fields in results array in each SARIF file.
         If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
@@ -444,9 +430,7 @@ class SarifFile:
         """
         for run in self.runs:
             run.init_general_filter(
-                filter_description,
-                include_filters,
-                exclude_filters
+                filter_description, include_filters, exclude_filters
             )
 
     def get_abs_file_path(self) -> str:
@@ -635,12 +619,7 @@ class SarifFileSet:
         for input_file in self.files:
             input_file.init_default_line_number_1()
 
-    def init_general_filter(
-        self,
-        filter_description,
-        include_filters,
-        exclude_filters
-    ):
+    def init_general_filter(self, filter_description, include_filters, exclude_filters):
         """
         Set up general filtering.  This is applied to all fields in results array in each SARIF file.
         If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
@@ -650,15 +629,11 @@ class SarifFileSet:
         """
         for subdir in self.subdirs:
             subdir.init_general_filter(
-                filter_description,
-                include_filters,
-                exclude_filters
+                filter_description, include_filters, exclude_filters
             )
         for input_file in self.files:
             input_file.init_general_filter(
-                filter_description,
-                include_filters,
-                exclude_filters
+                filter_description, include_filters, exclude_filters
             )
 
     def add_dir(self, sarif_file_set):

@@ -93,7 +93,17 @@ def _create_arg_parser():
             "--output", "-o", type=str, metavar="FILE", help="Output file"
         )
 
-    for cmd in ["codeclimate", "copy", "csv", "diff", "summary", "html", "emacs", "trend", "word"]:
+    for cmd in [
+        "codeclimate",
+        "copy",
+        "csv",
+        "diff",
+        "summary",
+        "html",
+        "emacs",
+        "trend",
+        "word",
+    ]:
         subparser[cmd].add_argument(
             "--filter",
             "-b",
@@ -414,7 +424,7 @@ _COMMANDS = {
     "codeclimate": {
         "fn": _codeclimate,
         "desc": "Write a JSON representation in Code Climate format of SARIF file(s) "
-                "for viewing as a Code Quality report in GitLab UI",
+        "for viewing as a Code Quality report in GitLab UI",
     },
     "copy": {
         "fn": _copy,
