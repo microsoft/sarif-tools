@@ -624,22 +624,32 @@ The data in each `result` object can then be used for filtering via the `--filte
 # Optional description for the filter.  If no title is specified, the filter file name is used.
 description: Example filter from README.md
 
+# Optional configuration section to override default values.
+configuration:
+  # This option controls whether to include results where a property to check is missing, default value is true.
+  default-include: false
+
 # Items in `include` list are interpreted as inclusion filtering rules. 
 # Items are treated with OR operator, the filtered results includes objects matching any rule.
 # Each item can be one rule or a list of rules, in the latter case rules in the list are treated with AND operator - all rules must match.
 include:
-  # The following line includes issues whose author-mail field contains "@microsoft.com" AND found in Java files. 
+  # The following line includes issues whose author-mail property contains "@microsoft.com" AND found in Java files. 
   # Values with special characters `\:;_()$%^@,` must be enclosed in quotes (single or double):
   - author-mail: "@microsoft.com"
     locations[*].physicalLocation.artifactLocation.uri: "*.java"
-  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  Issues whose committer-mail field includes a string matching the regular expression are included.  Use ^ and $ to match the whole committer-mail field.
-  - committer-mail: "/^<myname.*\\.com>$/"
+  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  
+  # Issues whose committer-mail property includes a string matching the regular expression are included.  
+  # Use ^ and $ to match the whole committer-mail property.
+  - committer-mail: 
+      value: "/^<myname.*\\.com>$/"
+      # Configuration options can be overriden for any rule.
+      default-include: true
 
 # Lines under `exclude` are interpreted as exclusion filtering rules.
 exclude:
   # The following line excludes issues whose location is in test Java files with names starting with the "Test" prefix.
   - location: "Test*.java"
-  # The value for the field can be empty, in this case only existence of the field in 
+  # The value for the property can be empty, in this case only existence of the property is checked. 
   - suppression:
 ```
 
@@ -658,7 +668,7 @@ exclude:
 Field names must be specified in [JSONPath notation](https://goessner.net/articles/JsonPath/)
 accessing data in the [SARIF `result` object](https://docs.oasis-open.org/sarif/sarif/v2.1.0/cs01/sarif-v2.1.0-cs01.html#_Toc16012594).
 
-For commonly used fields the following shortcuts are defined:
+For commonly used properties the following shortcuts are defined:
 | Shortcut | Full JSONPath |
 | -------- | -------- |
 | author | properties.blame.author |
@@ -669,7 +679,7 @@ For commonly used fields the following shortcuts are defined:
 | rule | ruleId |
 | suppression | suppressions[*].kind |
 
-For the field `uri` (e.g. in `locations[*].physicalLocation.artifactLocation.uri`) file name wildcard characters can be used as it represents a file location:
+For the property `uri` (e.g. in `locations[*].physicalLocation.artifactLocation.uri`) file name wildcard characters can be used as it represents a file location:
 - `?` - a single occurrence of any character in a directory or file name
 - `*` - zero or more occurrences of any character in a directory or file name
 - `**` - zero or more occurrences across multiple directory levels

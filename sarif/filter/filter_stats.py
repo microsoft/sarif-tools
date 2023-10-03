@@ -13,6 +13,7 @@ class FilterStats:
         self.filter_datetime = None
         self.filtered_in_result_count = 0
         self.filtered_out_result_count = 0
+        self.missing_property_count = 0
 
     def reset_counters(self):
         """
@@ -21,6 +22,7 @@ class FilterStats:
         self.filter_datetime = datetime.datetime.now()
         self.filtered_in_result_count = 0
         self.filtered_out_result_count = 0
+        self.missing_property_count = 0
 
     def add(self, other_filter_stats):
         """
@@ -35,6 +37,7 @@ class FilterStats:
             self.filtered_out_result_count += (
                 other_filter_stats.filtered_out_result_count
             )
+            self.missing_property_count += other_filter_stats.missing_property_count
 
     def __str__(self):
         """
@@ -54,6 +57,12 @@ class FilterStats:
             f": {self.filtered_out_result_count} filtered out, "
             f"{self.filtered_in_result_count} passed the filter"
         )
+        if self.missing_property_count:
+            ret += (
+                f", {self.missing_property_count} included by default "
+                "for lacking data to filter"
+            )
+
         return ret
 
     def to_json_camel_case(self):
@@ -65,6 +74,9 @@ class FilterStats:
             "filter": self.filter_description,
             "in": self.filtered_in_result_count,
             "out": self.filtered_out_result_count,
+            "default": {
+                "noProperty": self.missing_property_count,
+            },
         }
 
 
@@ -79,4 +91,5 @@ def load_filter_stats_from_json(json_data):
         ret.rehydrated = True
         ret.filtered_in_result_count = json_data.get("in", 0)
         ret.filtered_out_result_count = json_data.get("out", 0)
+        ret.missing_property_count = json_data.get("default", {}).get("noProperty", 0)
     return ret

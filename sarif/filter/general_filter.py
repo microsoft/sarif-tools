@@ -2,12 +2,13 @@ import os
 import re
 from typing import Optional, List
 
+import copy
 import jsonpath_ng.ext
 import yaml
 
 from sarif.filter.filter_stats import FilterStats, load_filter_stats_from_json
 
-# Commonly used fields can be specified using shortcuts
+# Commonly used properties can be specified using shortcuts
 # instead of full JSON path
 FILTER_SHORTCUTS = {
     "author": "properties.blame.author",
@@ -19,9 +20,14 @@ FILTER_SHORTCUTS = {
     "suppression": "suppressions[*].kind",
 }
 
-# Some fields can have specific shortcuts to make it easier to write filters
+# Some properties can have specific shortcuts to make it easier to write filters
 # For example a file location can be specified using wildcards
 FIELDS_REGEX_SHORTCUTS = {"uri": {"**": ".*", "*": "[^/]*", "?": "."}}
+
+# Default configuration for all filters
+DEFAULT_CONFIGURATION = {
+    "default-include": True,
+}
 
 
 def get_filter_function(filter_spec):
@@ -38,22 +44,22 @@ def get_filter_function(filter_spec):
     return lambda value: True
 
 
-def _convert_glob_to_regex(field_name, field_value_spec):
-    # skip if field_value_spec is a regex
-    if field_value_spec and not (
-        field_value_spec.startswith("/") and field_value_spec.endswith("/")
+def _convert_glob_to_regex(property_name, property_value_spec):
+    # skip if property_value_spec is a regex
+    if property_value_spec and not (
+        property_value_spec.startswith("/") and property_value_spec.endswith("/")
     ):
-        # get last component of field name
-        last_component = field_name.split(".")[-1]
+        # get last component of property name
+        last_component = property_name.split(".")[-1]
         if last_component in FIELDS_REGEX_SHORTCUTS:
             shortcuts = FIELDS_REGEX_SHORTCUTS[last_component]
             rx = re.compile("|".join(map(re.escape, shortcuts.keys())))
-            field_value_spec = rx.sub(
-                lambda match: shortcuts[match.group(0)], field_value_spec
+            property_value_spec = rx.sub(
+                lambda match: shortcuts[match.group(0)], property_value_spec
             )
 
-            return f"/{field_value_spec}/"
-    return field_value_spec
+            return f"/{property_value_spec}/"
+    return property_value_spec
 
 
 class GeneralFilter:
@@ -67,8 +73,11 @@ class GeneralFilter:
         self.apply_inclusion_filter = False
         self.exclude_filters = {}
         self.apply_exclusion_filter = False
+        self.configuration = DEFAULT_CONFIGURATION
 
-    def init_filter(self, filter_description, include_filters, exclude_filters):
+    def init_filter(
+        self, filter_description, configuration, include_filters, exclude_filters
+    ):
         """
         Initialise the filter with the given filter patterns.
         """
@@ -77,6 +86,7 @@ class GeneralFilter:
         self.apply_inclusion_filter = len(include_filters) > 0
         self.exclude_filters = exclude_filters
         self.apply_exclusion_filter = len(exclude_filters) > 0
+        self.configuration.update(configuration)
 
     def rehydrate_filter_stats(self, dehydrated_filter_stats, filter_datetime):
         """
@@ -97,29 +107,30 @@ class GeneralFilter:
         # Remove any existing filter log on the result
         result.setdefault("properties", {}).pop("filtered", None)
 
-        matched_include_filters = []
+        included_stats = None
         if self.apply_inclusion_filter:
-            matched_include_filters = self._filter_result(result, self.include_filters)
-            if not matched_include_filters:
+            included_stats = self._filter_result(result, self.include_filters)
+            if not included_stats["matchedFilter"]:
                 return
 
         if self.apply_exclusion_filter:
-            if self._filter_result(result, self.exclude_filters):
+            excluded_stats = self._filter_result(result, self.exclude_filters)
+            if excluded_stats["matchedFilter"]:
                 self.filter_stats.filtered_out_result_count += 1
                 return
 
-        included = {
-            "state": "included",
-            "matchedFilter": matched_include_filters,
-        }
-        self.filter_stats.filtered_in_result_count += 1
-        included["filter"] = self.filter_stats.filter_description
-        result["properties"]["filtered"] = included
+        if included_stats["state"] == "included":
+            self.filter_stats.filtered_in_result_count += 1
+        else:
+            self.filter_stats.missing_property_count += 1
+        included_stats["filter"] = self.filter_stats.filter_description
+        result["properties"]["filtered"] = included_stats
 
         filtered_results.append(result)
 
-    def _filter_result(self, result: dict, filters: List[str]) -> List[dict]:
+    def _filter_result(self, result: dict, filters: List[str]) -> dict:
         matched_filters = []
+        warnings = []
         if filters:
             # filters contains rules which treated as OR.
             # if any rule matches, the record is selected.
@@ -130,6 +141,14 @@ class GeneralFilter:
                 for prop_path, prop_value_spec in filter_spec.items():
                     resolved_prop_path = FILTER_SHORTCUTS.get(prop_path, prop_path)
                     jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
+                    filter_configuration = self.configuration
+
+                    # if prop_value_spec is a dict, update filter configuration from it
+                    if isinstance(prop_value_spec, dict):
+                        filter_configuration = copy.deepcopy(self.configuration)
+                        filter_configuration.update(prop_value_spec)
+                        # actual value for the filter is in "value" key
+                        prop_value_spec = prop_value_spec.get("value", None)
 
                     found_results = jsonpath_expr.find(result)
                     if found_results:
@@ -140,11 +159,34 @@ class GeneralFilter:
                         filter_function = get_filter_function(value_spec)
                         if filter_function(value):
                             continue
+                    else:
+                        # property to filter on is not found.
+                        # if "default-include" is true, include the "result" with a warning.
+                        if filter_configuration.get("default-include", True):
+                            warnings.append(
+                                f"Field '{prop_path}' is missing but the result included as default-include is true"
+                            )
+                            continue
                     matched = False
                     break
                 if matched:
                     matched_filters.append(filter_spec)
-        return matched_filters
+                    break
+
+        stats = {
+            "state": "included",
+            "matchedFilter": matched_filters,
+        }
+
+        if warnings:
+            stats.update(
+                {
+                    "state": "default",
+                    "warnings": warnings,
+                }
+            )
+
+        return stats
 
     def filter_results(self, results: List[dict]) -> List[dict]:
         """
@@ -177,8 +219,9 @@ def load_filter_file(file_path):
         with open(file_path, encoding="utf-8") as file_in:
             yaml_content = yaml.safe_load(file_in)
             filter_description = yaml_content.get("description", file_name)
+            configuration = yaml_content.get("configuration", {})
             include_filters = yaml_content.get("include", {})
             exclude_filters = yaml_content.get("exclude", {})
     except yaml.YAMLError as error:
         raise IOError(f"Cannot read filter file {file_path}") from error
-    return filter_description, include_filters, exclude_filters
+    return filter_description, configuration, include_filters, exclude_filters
