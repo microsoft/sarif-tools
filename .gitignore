@@ -5,3 +5,12 @@
 *.orig
 /.venv
 /.vscode
+/.idea
+/.pytest_cache
+.DS_Store
+*.sarif
+*.json
+*.csv
+.coverage
+coverage.xml
+*filter.yaml

@@ -9,12 +9,16 @@ import os
 import re
 from typing import Dict, Iterator, List, Optional, Tuple
 
+from sarif.filter.general_filter import GeneralFilter
+from sarif.filter.filter_stats import FilterStats
+
 SARIF_SEVERITIES = ["error", "warning", "note"]
 
 BASIC_RECORD_ATTRIBUTES = ["Tool", "Severity", "Code", "Location", "Line"]
 BLAME_RECORD_ATTRIBUTES = ["Author"]
 
-# Standard time format for filenames, e.g. `20211012T110000Z` (not part of the SARIF standard).
+# Standard time format for filenames, e.g. `20211012T110000Z`
+# (not part of the SARIF standard).
 # Can obtain from bash via `date +"%Y%m%dT%H%M%SZ"``
 DATETIME_FORMAT = "%Y%m%dT%H%M%SZ"
 DATETIME_REGEX = r"\d{8}T\d{6}Z"
@@ -103,112 +107,6 @@ def get_record_headings(with_blame) -> List[str]:
     )
 
 
-class FilterStats:
-    """
-    Statistics that record the outcome of a a filter.
-    """
-
-    def __init__(self, filter_description):
-        self.filter_description = filter_description
-        # Filter stats can also be loaded from a file created by `sarif copy`.
-        self.rehydrated = False
-        self.filter_datetime = None
-        self.filtered_in_result_count = 0
-        self.filtered_out_result_count = 0
-        self.missing_blame_count = 0
-        self.unconvincing_line_number_count = 0
-
-    def reset_counters(self):
-        """
-        Zero all the counters.
-        """
-        self.filter_datetime = datetime.datetime.now()
-        self.filtered_in_result_count = 0
-        self.filtered_out_result_count = 0
-        self.missing_blame_count = 0
-        self.unconvincing_line_number_count = 0
-
-    def add(self, other_filter_stats):
-        """
-        Add another set of filter stats to my totals.
-        """
-        if other_filter_stats:
-            if other_filter_stats.filter_description and (
-                other_filter_stats.filter_description != self.filter_description
-            ):
-                self.filter_description += f", {other_filter_stats.filter_description}"
-            self.filtered_in_result_count += other_filter_stats.filtered_in_result_count
-            self.filtered_out_result_count += (
-                other_filter_stats.filtered_out_result_count
-            )
-            self.missing_blame_count += other_filter_stats.missing_blame_count
-            self.unconvincing_line_number_count += (
-                other_filter_stats.unconvincing_line_number_count
-            )
-
-    def __str__(self):
-        """
-        Automatic to_string()
-        """
-        return self.to_string()
-
-    def to_string(self):
-        """
-        Generate a summary string for these filter stats.
-        """
-        ret = f"'{self.filter_description}'"
-        if self.filter_datetime:
-            ret += " at "
-            ret += self.filter_datetime.strftime("%c")
-        ret += (
-            f": {self.filtered_out_result_count} filtered out, "
-            f"{self.filtered_in_result_count} passed the filter"
-        )
-        if self.unconvincing_line_number_count:
-            ret += (
-                f", {self.unconvincing_line_number_count} included by default "
-                "for lacking line number information"
-            )
-        if self.missing_blame_count:
-            ret += (
-                f", {self.missing_blame_count} included by default "
-                "for lacking blame data to filter"
-            )
-        return ret
-
-    def to_json_camel_case(self):
-        """
-        Generate filter stats as JSON using camelCase naming, to fit with SARIF standard section
-        3.8.1 (Property Bags).
-        """
-        return {
-            "filter": self.filter_description,
-            "in": self.filtered_in_result_count,
-            "out": self.filtered_out_result_count,
-            "default": {
-                "noLineNumber": self.unconvincing_line_number_count,
-                "noBlame": self.missing_blame_count,
-            },
-        }
-
-
-def load_filter_stats_from_json_camel_case(json_data):
-    """
-    Load filter stats from a SARIF file property bag
-    """
-    ret = None
-    if json_data:
-        ret = FilterStats(json_data["filter"])
-        ret.rehydrated = True
-        ret.filtered_in_result_count = json_data.get("in", 0)
-        ret.filtered_out_result_count = json_data.get("out", 0)
-        ret.unconvincing_line_number_count = json_data.get("default", {}).get(
-            "noLineNumber", 0
-        )
-        ret.missing_blame_count = json_data.get("default", {}).get("noBlame", 0)
-    return ret
-
-
 def _add_filter_stats(accumulator, filter_stats):
     if filter_stats:
         if accumulator:
@@ -226,159 +124,6 @@ def _get_author_mail_from_blame_info(blame_info):
     )
 
 
-class _BlameFilter:
-    """
-    Class that implements blame filtering.
-    """
-
-    def __init__(self):
-        self.filter_stats = None
-        self.include_substrings = None
-        self.include_regexes = None
-        self.apply_inclusion_filter = False
-        self.exclude_substrings = None
-        self.exclude_regexes = None
-        self.apply_exclusion_filter = False
-
-    def init_blame_filter(
-        self,
-        filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
-    ):
-        """
-        Initialise the blame filter with the given filter patterns.
-        """
-        self.filter_stats = FilterStats(filter_description)
-        self.include_substrings = (
-            [s.upper().strip() for s in include_substrings]
-            if include_substrings
-            else None
-        )
-        self.include_regexes = include_regexes[:] if include_regexes else None
-        self.apply_inclusion_filter = bool(
-            self.include_substrings or self.include_regexes
-        )
-        self.exclude_substrings = (
-            [s.upper().strip() for s in exclude_substrings]
-            if exclude_substrings
-            else None
-        )
-        self.exclude_regexes = exclude_regexes[:] if exclude_regexes else None
-        self.apply_exclusion_filter = bool(
-            self.exclude_substrings or self.exclude_regexes
-        )
-
-    def rehydrate_filter_stats(self, dehydrated_filter_stats, filter_datetime):
-        """
-        Restore filter stats from the SARIF file directly, where they were recorded when the filter
-        was previously run.
-
-        Note that if init_blame_filter is called, these rehydrated stats are discarded.
-        """
-        self.filter_stats = load_filter_stats_from_json_camel_case(
-            dehydrated_filter_stats
-        )
-        self.filter_stats.filter_datetime = filter_datetime
-
-    def _zero_counts(self):
-        if self.filter_stats:
-            self.filter_stats.reset_counters()
-
-    def _check_include_result(self, author_mail):
-        author_mail_upper = author_mail.upper().strip()
-        matched_include_substrings = None
-        matched_include_regexes = None
-        if self.apply_inclusion_filter:
-            if self.include_substrings:
-                matched_include_substrings = [
-                    s for s in self.include_substrings if s in author_mail_upper
-                ]
-            if self.include_regexes:
-                matched_include_regexes = [
-                    r
-                    for r in self.include_regexes
-                    if re.search(r, author_mail, re.IGNORECASE)
-                ]
-            if (not matched_include_substrings) and (not matched_include_regexes):
-                return False
-        if self.exclude_substrings and any(
-            s in author_mail_upper for s in self.exclude_substrings
-        ):
-            return False
-        if self.exclude_regexes and any(
-            re.search(r, author_mail, re.IGNORECASE) for r in self.exclude_regexes
-        ):
-            return False
-        return {
-            "state": "included",
-            "matchedSubstring": [s.lower() for s in matched_include_substrings]
-            if matched_include_substrings
-            else [],
-            "matchedRegex": [r.lower() for r in matched_include_regexes]
-            if matched_include_regexes
-            else [],
-        }
-
-    def _filter_append(self, filtered_results, result, blame_info):
-        # Remove any existing filter log on the result
-        result.setdefault("properties", {}).pop("filtered", None)
-        author_mail = _get_author_mail_from_blame_info(blame_info)
-        if author_mail:
-            # First, check inclusion
-            included = self._check_include_result(author_mail)
-            if included:
-                self.filter_stats.filtered_in_result_count += 1
-                included["filter"] = self.filter_stats.filter_description
-                result["properties"]["filtered"] = included
-                filtered_results.append(result)
-            else:
-                (_file_path, line_number) = _read_result_location(result)
-                if line_number == "1" or not line_number:
-                    # Line number is not convincing.  Blame information may be misattributed.
-                    self.filter_stats.unconvincing_line_number_count += 1
-                    result["properties"]["filtered"] = {
-                        "filter": self.filter_stats.filter_description,
-                        "state": "default",
-                        "missing": "line",
-                    }
-                    filtered_results.append(result)
-                else:
-                    self.filter_stats.filtered_out_result_count += 1
-        else:
-            self.filter_stats.missing_blame_count += 1
-            # Result did not contain complete blame information, so don't filter it out.
-            result["properties"]["filtered"] = {
-                "filter": self.filter_stats.filter_description,
-                "state": "default",
-                "missing": "blame",
-            }
-            filtered_results.append(result)
-
-    def filter_results(self, results):
-        """
-        Apply this blame filter to a list of results, return the results that pass the filter
-        and as a side-effect, update the filter stats.
-        """
-        if self.apply_inclusion_filter or self.apply_exclusion_filter:
-            self._zero_counts()
-            ret = []
-            for result in results:
-                blame_info = result.get("properties", {}).get("blame", None)
-                self._filter_append(ret, result, blame_info)
-            return ret
-        # No inclusion or exclusion patterns
-        return results
-
-    def get_filter_stats(self) -> Optional[FilterStats]:
-        """
-        Get the statistics from running this filter.
-        """
-        return self.filter_stats
-
-
 class SarifRun:
     """
     Class to hold a run object from a SARIF file (an entry in the top-level "runs" list
@@ -392,7 +137,7 @@ class SarifRun:
         self.run_data = run_data
         self._path_prefixes_upper = None
         self._cached_records = None
-        self._filter = _BlameFilter()
+        self._filter = GeneralFilter()
         self._default_line_number = None
         conversion = run_data.get("conversion", None)
         if conversion:
@@ -459,35 +204,18 @@ class SarifRun:
         self._default_line_number = "1"
         self._cached_records = None
 
-    def init_blame_filter(
-        self,
-        filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
+    def init_general_filter(
+        self, filter_description, configuration, include_filters, exclude_filters
     ):
         """
-        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
-        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
-        blame information.
-        If only inclusion criteria are provided, only issues matching the inclusion criteria
-        are considered.
-        If only exclusion criteria are provided, only issues not matching the exclusion criteria
-        are considered.
+        Set up general filtering.  This is applied to all properties in results array in each SARIF file.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria are considered.
         If both are provided, only issues matching the inclusion criteria and not matching the
         exclusion criteria are considered.
-        include_substrings = substrings of author_mail to filter issues for inclusion.
-        include_regexes = regular expressions for author_mail to filter issues for inclusion.
-        exclude_substrings = substrings of author_mail to filter issues for exclusion.
-        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
         """
-        self._filter.init_blame_filter(
-            filter_description,
-            include_substrings,
-            include_regexes,
-            exclude_substrings,
-            exclude_regexes,
+        self._filter.init_filter(
+            filter_description, configuration, include_filters, exclude_filters
         )
         # Clear the unfiltered records cached by get_records() above.
         self._cached_records = None
@@ -696,36 +424,19 @@ class SarifFile:
         for run in self.runs:
             run.init_default_line_number_1()
 
-    def init_blame_filter(
-        self,
-        filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
+    def init_general_filter(
+        self, filter_description, configuration, include_filters, exclude_filters
     ):
         """
-        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
-        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
-        blame information.
-        If only inclusion criteria are provided, only issues matching the inclusion criteria
-        are considered.
-        If only exclusion criteria are provided, only issues not matching the exclusion criteria
-        are considered.
+        Set up general filtering.  This is applied to all properties in results array in each SARIF file.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria are considered.
         If both are provided, only issues matching the inclusion criteria and not matching the
         exclusion criteria are considered.
-        include_substrings = substrings of author_mail to filter issues for inclusion.
-        include_regexes = regular expressions for author_mail to filter issues for inclusion.
-        exclude_substrings = substrings of author_mail to filter issues for exclusion.
-        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
         """
         for run in self.runs:
-            run.init_blame_filter(
-                filter_description,
-                include_substrings,
-                include_regexes,
-                exclude_substrings,
-                exclude_regexes,
+            run.init_general_filter(
+                filter_description, configuration, include_filters, exclude_filters
             )
 
     def get_abs_file_path(self) -> str:
@@ -914,44 +625,23 @@ class SarifFileSet:
         for input_file in self.files:
             input_file.init_default_line_number_1()
 
-    def init_blame_filter(
-        self,
-        filter_description,
-        include_substrings,
-        include_regexes,
-        exclude_substrings,
-        exclude_regexes,
+    def init_general_filter(
+        self, filter_description, configuration, include_filters, exclude_filters
     ):
         """
-        Set up blame filtering.  This is applied to the author_mail field added to the "blame"
-        property bag in each SARIF file.  Raises an error if any of the SARIF files don't contain
-        blame information.
-        If only inclusion criteria are provided, only issues matching the inclusion criteria
-        are considered.
-        If only exclusion criteria are provided, only issues not matching the exclusion criteria
-        are considered.
+        Set up general filtering.  This is applied to all properties in results array in each SARIF file.
+        If only inclusion criteria are provided, only issues matching the inclusion criteria are considered.
+        If only exclusion criteria are provided, only issues not matching the exclusion criteria are considered.
         If both are provided, only issues matching the inclusion criteria and not matching the
         exclusion criteria are considered.
-        include_substrings = substrings of author_mail to filter issues for inclusion.
-        include_regexes = regular expressions for author_mail to filter issues for inclusion.
-        exclude_substrings = substrings of author_mail to filter issues for exclusion.
-        exclude_regexes = regular expressions for author_mail to filter issues for exclusion.
         """
         for subdir in self.subdirs:
-            subdir.init_blame_filter(
-                filter_description,
-                include_substrings,
-                include_regexes,
-                exclude_substrings,
-                exclude_regexes,
+            subdir.init_general_filter(
+                filter_description, configuration, include_filters, exclude_filters
             )
         for input_file in self.files:
-            input_file.init_blame_filter(
-                filter_description,
-                include_substrings,
-                include_regexes,
-                exclude_substrings,
-                exclude_regexes,
+            input_file.init_general_filter(
+                filter_description, configuration, include_filters, exclude_filters
             )
 
     def add_dir(self, sarif_file_set):

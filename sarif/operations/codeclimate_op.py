@@ -8,12 +8,7 @@ import hashlib
 
 from sarif.sarif_file import SarifFileSet
 
-_SEVERITIES = {
-    "none": "info",
-    "note": "info",
-    "warning": "minor",
-    "error": "major"
-}
+_SEVERITIES = {"none": "info", "note": "info", "warning": "minor", "error": "major"}
 
 
 def generate(input_files: SarifFileSet, output: str, output_multiple_files: bool):
@@ -61,30 +56,29 @@ def _write_to_json(list_of_errors, output_file):
         severity = _SEVERITIES.get(record.get("Severity", "warning"), "minor")
 
         # split Code value to extract error ID and description
-        rule = record["Code"].split(' ', 1)[0]
-        description = record["Code"][len(rule)+1:]
+        rule = record["Code"].split(" ", 1)[0]
+        description = record["Code"][len(rule) + 1 :]
 
         path = record["Location"]
         line = record["Line"]
 
-        fingerprint = hashlib.md5(f"{description} {path} ${line}`]".encode()).hexdigest()
+        fingerprint = hashlib.md5(
+            f"{description} {path} ${line}`]".encode()
+        ).hexdigest()
 
         # "categories" property is not used in GitLab but marked as "required" in Code Climate spec.
         # There is no easy way to determine a category so the fixed value is set.
-        content.append({
-            "type": "issue",
-            "check_name": rule,
-            "description": description,
-            "categories": ["Bug Risk"],
-            "location": {
-                "path": path,
-                "lines": {
-                    "begin": line
-                }
-            },
-            "severity": severity,
-            "fingerprint": fingerprint
-        })
+        content.append(
+            {
+                "type": "issue",
+                "check_name": rule,
+                "description": description,
+                "categories": ["Bug Risk"],
+                "location": {"path": path, "lines": {"begin": line}},
+                "severity": severity,
+                "fingerprint": fingerprint,
+            }
+        )
 
     with open(output_file, "w", encoding="utf-8") as file_out:
         json.dump(content, file_out, indent=4)
