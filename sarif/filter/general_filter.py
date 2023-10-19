@@ -107,11 +107,13 @@ class GeneralFilter:
         # Remove any existing filter log on the result
         result.setdefault("properties", {}).pop("filtered", None)
 
-        included_stats = None
         if self.apply_inclusion_filter:
             included_stats = self._filter_result(result, self.include_filters)
             if not included_stats["matchedFilter"]:
                 return
+        else:
+            # no inclusion filters, mark the result as included so far
+            included_stats = {"state": "included", "matchedFilter": []}
 
         if self.apply_exclusion_filter:
             excluded_stats = self._filter_result(result, self.exclude_filters)

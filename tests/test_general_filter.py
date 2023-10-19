@@ -251,6 +251,19 @@ class TestGeneralFilter:
         assert general_filter.filter_stats.filtered_out_result_count == 10
         assert general_filter.filter_stats.missing_property_count == 0
 
+    def test_filter_results_exclude_not_all(self):
+        general_filter = GeneralFilter()
+        general_filter.init_filter("test filter", {}, [], [{"level": "error"}])
+        results = [{"level": "error"}, {"level": "warning"}, {"level": "error"}]
+
+        filtered_results = general_filter.filter_results(results)
+        assert len(filtered_results) == 1
+        assert general_filter.filter_stats.filtered_in_result_count == 1
+        assert general_filter.filter_stats.filtered_out_result_count == 2
+        assert general_filter.filter_stats.missing_property_count == 0
+        assert filtered_results[0]["properties"]["filtered"]["state"] == "included"
+        assert len(filtered_results[0]["properties"]["filtered"]["matchedFilter"]) == 0
+
     def test_filter_results_no_filters(self):
         general_filter = GeneralFilter()
         general_filter.init_filter("test filter", {}, [], [])
