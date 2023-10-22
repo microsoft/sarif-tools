@@ -1,9 +1,13 @@
+"""
+Statistics that record the outcome of a filter.
+"""
+
 import datetime
 
 
 class FilterStats:
     """
-    Statistics that record the outcome of a a filter.
+    Statistics that record the outcome of a filter.
     """
 
     def __init__(self, filter_description):

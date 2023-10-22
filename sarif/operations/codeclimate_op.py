@@ -56,8 +56,8 @@ def _write_to_json(list_of_errors, output_file):
         severity = _SEVERITIES.get(record.get("Severity", "warning"), "minor")
 
         # split Code value to extract error ID and description
-        rule = record["Code"].split(" ", 1)[0]
-        description = record["Code"][len(rule) + 1 :]
+        rule = record["Code"]
+        description = record["Description"]
 
         path = record["Location"]
         line = record["Line"]

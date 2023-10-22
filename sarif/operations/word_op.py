@@ -18,11 +18,13 @@ from docx.enum import text
 from docx.oxml import ns
 
 from sarif import charts, sarif_file
-from sarif.sarif_file import SarifFileSet
 
 
 def generate_word_docs_from_sarif_inputs(
-    input_files: SarifFileSet, image_file: str, output: str, output_multiple_files: bool
+    input_files: sarif_file.SarifFileSet,
+    image_file: str,
+    output: str,
+    output_multiple_files: bool,
 ):
     """
     Convert SARIF input to Word file output.
@@ -115,7 +117,7 @@ def _dump_errors_summary_by_sev(document, sarif_data):
         # out in descending order.
         dict_of_error_codes = {}
         for error in errors_of_severity:
-            issue_code = error["Code"]
+            issue_code = sarif_file.combine_code_and_description(error)
             dict_of_error_codes[issue_code] = dict_of_error_codes.get(issue_code, 0) + 1
         sorted_dict = sorted(
             dict_of_error_codes.items(), key=lambda x: x[1], reverse=True
@@ -137,7 +139,9 @@ def _dump_each_error_in_detail(document, sarif_data):
     sev_to_records = sarif_data.get_records_grouped_by_severity()
     for severity in severities:
         errors_of_severity = sev_to_records.get(severity, [])
-        sorted_errors_by_severity = sorted(errors_of_severity, key=lambda x: x["Code"])
+        sorted_errors_by_severity = sorted(
+            errors_of_severity, key=sarif_file.combine_code_and_description
+        )
         # Sample:
         # [{'Location': 'C:\\Max\\AccessionAndroid\\scripts\\parse_coverage.py', 'Line': 119,
         #       'Severity': 'error', 'Code': 'DS126186 Disabled certificate validation'},
@@ -177,7 +181,7 @@ def _dump_each_error_in_detail(document, sarif_data):
 
             for eachrow in sorted_errors_by_severity:
                 cells_text += [
-                    eachrow["Code"],
+                    sarif_file.combine_code_and_description(eachrow),
                     eachrow["Location"],
                     str(eachrow["Line"]),
                 ]

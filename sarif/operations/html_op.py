@@ -9,7 +9,7 @@ import os
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from sarif import charts
-from sarif.sarif_file import SarifFileSet
+from sarif import sarif_file
 
 _THIS_MODULE_PATH = os.path.dirname(__file__)
 
@@ -22,7 +22,10 @@ _ENV = Environment(
 
 
 def generate_html(
-    input_files: SarifFileSet, image_file: str, output: str, output_multiple_files: bool
+    input_files: sarif_file.SarifFileSet,
+    image_file: str,
+    output: str,
+    output_multiple_files: bool,
 ):
     """
     Generate HTML file from the input files.
@@ -127,10 +130,16 @@ def _generate_single_html(
 def _enrich_details(histogram, records_of_severity):
     enriched_details = []
 
-    for error_code, count in histogram:
-        error_lines = (e for e in records_of_severity if e["Code"] == error_code)
-        lines = sorted(
-            error_lines, key=lambda x: x["Location"] + str(x["Line"]).zfill(6)
+    for error_code_and_desc, count in histogram:
+        error_lines_generator = (
+            e
+            for e in records_of_severity
+            if sarif_file.combine_code_and_description(e) == error_code_and_desc
         )
-        enriched_details.append({"code": error_code, "count": count, "details": lines})
+        lines = sorted(
+            error_lines_generator, key=lambda x: x["Location"] + str(x["Line"]).zfill(6)
+        )
+        enriched_details.append(
+            {"code": error_code_and_desc, "count": count, "details": lines}
+        )
     return enriched_details
