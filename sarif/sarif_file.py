@@ -14,7 +14,14 @@ from sarif.filter.filter_stats import FilterStats
 
 SARIF_SEVERITIES = ["error", "warning", "note"]
 
-BASIC_RECORD_ATTRIBUTES = ["Tool", "Severity", "Code", "Location", "Line"]
+BASIC_RECORD_ATTRIBUTES = [
+    "Tool",
+    "Severity",
+    "Code",
+    "Description",
+    "Location",
+    "Line",
+]
 BLAME_RECORD_ATTRIBUTES = ["Author"]
 
 # Standard time format for filenames, e.g. `20211012T110000Z`
@@ -82,13 +89,13 @@ def _group_records_by_severity(records) -> Dict[str, List[Dict]]:
 
 def _count_records_by_issue_code(records, severity) -> List[Tuple]:
     """
-    Return a list of pairs (code, count) of the records with the specified
+    Return a list of pairs (code_and_desc, count) of the records with the specified
     severities.
     """
     code_to_count = {}
     for record in records:
         if record["Severity"] == severity:
-            code = record["Code"]
+            code = combine_code_and_description(record)
             code_to_count[code] = code_to_count.get(code, 0) + 1
     return sorted(code_to_count.items(), key=lambda x: x[1], reverse=True)
 
@@ -105,6 +112,20 @@ def get_record_headings(with_blame) -> List[str]:
         if with_blame
         else BASIC_RECORD_ATTRIBUTES
     )
+
+
+def combine_code_and_description(record: dict) -> str:
+    """
+    Combine code and description fields into one string.
+    """
+    (code, description) = (record["Code"], record["Description"])
+    if code and description:
+        return f"{code.strip()} {description.strip()}"
+    if code:
+        return code.strip()
+    if description:
+        return description.strip()
+    return "<NONE>"
 
 
 def _add_filter_stats(accumulator, filter_stats):
@@ -267,8 +288,8 @@ class SarifRun:
         """
         Convert a SARIF result object to a simple record dict.
 
-        Fields are "Tool", "Location", "Line", "Severity" and "Code".  Also "Author" if blame
-        information is present.  See definition of result object here:
+        Fields are "Tool", "Location", "Line", "Severity", "Code" and "Description".  Also "Author"
+        if blame information is present.  See definition of result object here:
         https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638
         """
         error_id = result["ruleId"]
@@ -322,9 +343,10 @@ class SarifRun:
             "Location": file_path,
             "Line": line_number,
             "Severity": severity,
-            "Code": message
+            "Code": error_id,
+            "Description": message[len(error_id) + 1].strip()
             if message.startswith(error_id)
-            else f"{error_id} {message}",
+            else message,
         }
         if include_blame_info:
             record["Author"] = _get_author_mail_from_blame_info(
@@ -517,9 +539,9 @@ class SarifFile:
         """
         Return a dict from SARIF severity to number of records.
         """
-        result_count_by_severity_per_run = (
+        result_count_by_severity_per_run = [
             run.get_result_count_by_severity() for run in self.runs
-        )
+        ]
         return {
             severity: sum(
                 rc.get(severity, 0) for rc in result_count_by_severity_per_run

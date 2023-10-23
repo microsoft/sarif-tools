@@ -6,7 +6,7 @@ import json
 import sys
 from typing import Dict
 
-from sarif.sarif_file import SarifFileSet, SARIF_SEVERITIES
+from sarif import sarif_file
 
 
 def _occurrences(occurrence_count):
@@ -24,7 +24,10 @@ def _record_to_location_tuple(record) -> str:
 
 
 def print_diff(
-    original_sarif: SarifFileSet, new_sarif: SarifFileSet, output, check_level=None
+    original_sarif: sarif_file.SarifFileSet,
+    new_sarif: sarif_file.SarifFileSet,
+    output,
+    check_level=None,
 ) -> str:
     """
     Generate a diff of the issues from the SARIF files and write it to stdout
@@ -38,7 +41,7 @@ def print_diff(
         with open(output, "w", encoding="utf-8") as output_file:
             json.dump(diff, output_file, indent=4)
     else:
-        for severity in SARIF_SEVERITIES:
+        for severity in sarif_file.SARIF_SEVERITIES:
             if diff[severity]["codes"]:
                 print(
                     severity,
@@ -83,7 +86,7 @@ def print_diff(
         print(f"  'After' results were filtered by {filter_stats}")
     ret = 0
     if check_level:
-        for severity in SARIF_SEVERITIES:
+        for severity in sarif_file.SARIF_SEVERITIES:
             ret += diff.get(severity, {}).get("+", 0)
             if severity == check_level:
                 break
@@ -94,12 +97,16 @@ def print_diff(
     return ret
 
 
-def _find_new_occurrences(new_records, old_records, issue_code):
-    old_occurrences = [r for r in old_records if r["Code"] == issue_code]
+def _find_new_occurrences(new_records, old_records, issue_code_and_desc):
+    old_occurrences = [
+        r
+        for r in old_records
+        if sarif_file.combine_code_and_description(r) == issue_code_and_desc
+    ]
     new_occurrences_new_locations = []
     new_occurrences_new_lines = []
     for r in new_records:
-        if r["Code"] == issue_code:
+        if sarif_file.combine_code_and_description(r) == issue_code_and_desc:
             (new_location, new_line) = (True, True)
             for old_r in old_occurrences:
                 if old_r["Location"] == r["Location"]:
@@ -119,7 +126,9 @@ def _find_new_occurrences(new_records, old_records, issue_code):
     ) + sorted(new_occurrences_new_lines, key=_record_to_location_tuple)
 
 
-def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> Dict:
+def calc_diff(
+    original_sarif: sarif_file.SarifFileSet, new_sarif: sarif_file.SarifFileSet
+) -> Dict:
     """
     Generate a diff of the issues from the SARIF files.
     original_sarif corresponds to the old files.
@@ -127,7 +136,7 @@ def calc_diff(original_sarif: SarifFileSet, new_sarif: SarifFileSet) -> Dict:
     Return dict has keys "error", "warning", "note" and "all".
     """
     ret = {"all": {"+": 0, "-": 0}}
-    for severity in SARIF_SEVERITIES:
+    for severity in sarif_file.SARIF_SEVERITIES:
         original_histogram = dict(original_sarif.get_issue_code_histogram(severity))
         new_histogram = new_sarif.get_issue_code_histogram(severity)
         new_histogram_dict = dict(new_histogram)

@@ -196,7 +196,7 @@ optional arguments:
   --trim PREFIX         Prefix to strip from issue paths, e.g. the checkout directory on the build agent
 ```
 
-Write out a JSON file of Code Climate tool format from [a set of] SARIF files.  
+Write out a JSON file of Code Climate tool format from [a set of] SARIF files.
 This can then be published as a Code Quality report artefact in a GitLab pipeline and shown in GitLab UI for merge requests.
 
 The JSON output can also be filtered using the blame information; see
@@ -629,18 +629,18 @@ configuration:
   # This option controls whether to include results where a property to check is missing, default value is true.
   default-include: false
 
-# Items in `include` list are interpreted as inclusion filtering rules. 
+# Items in `include` list are interpreted as inclusion filtering rules.
 # Items are treated with OR operator, the filtered results includes objects matching any rule.
 # Each item can be one rule or a list of rules, in the latter case rules in the list are treated with AND operator - all rules must match.
 include:
-  # The following line includes issues whose author-mail property contains "@microsoft.com" AND found in Java files. 
+  # The following line includes issues whose author-mail property contains "@microsoft.com" AND found in Java files.
   # Values with special characters `\:;_()$%^@,` must be enclosed in quotes (single or double):
   - author-mail: "@microsoft.com"
     locations[*].physicalLocation.artifactLocation.uri: "*.java"
-  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.  
-  # Issues whose committer-mail property includes a string matching the regular expression are included.  
+  # Instead of a substring, a regular expression can be used, enclosed in "/" characters.
+  # Issues whose committer-mail property includes a string matching the regular expression are included.
   # Use ^ and $ to match the whole committer-mail property.
-  - committer-mail: 
+  - committer-mail:
       value: "/^<myname.*\\.com>$/"
       # Configuration options can be overriden for any rule.
       default-include: true
@@ -649,7 +649,7 @@ include:
 exclude:
   # The following line excludes issues whose location is in test Java files with names starting with the "Test" prefix.
   - location: "Test*.java"
-  # The value for the property can be empty, in this case only existence of the property is checked. 
+  # The value for the property can be empty, in this case only existence of the property is checked.
   - suppression:
 ```
 
@@ -737,6 +737,7 @@ attributes defined in `sarif_file.RECORD_ATTRIBUTES`.
 - `"Severity"` - the SARIF severity for the record.  One of `error`, `warning` (the default if the
   record doesn't specify) or `note`.
 - `"Code"` - the issue code from the result.
+- `"Description"` - the issue name from the result - corresponding to the Code.
 - `"Location"` - the location of the issue, typically the file containing the issue.  Format varies
   by tool.
 - `"Line"` - the line number in the file where the issue occurs.  Value is a string.  This defaults

@@ -1,3 +1,7 @@
+"""
+SARIF file filtering functionality.
+"""
+
 import os
 import re
 from typing import Optional, List
@@ -31,16 +35,16 @@ DEFAULT_CONFIGURATION = {
 
 
 def get_filter_function(filter_spec):
+    """Return a filter function for the given specification."""
     if filter_spec:
         filter_len = len(filter_spec)
         if filter_len > 2 and filter_spec.startswith("/") and filter_spec.endswith("/"):
             regex = filter_spec[1:-1]
             return lambda value: re.search(regex, value, re.IGNORECASE)
-        else:
-            substring = filter_spec
-            # substring can be empty, in this case "in" returns true
-            # and only existence of the property checked.
-            return lambda value: substring in value
+        substring = filter_spec
+        # substring can be empty, in this case "in" returns true
+        # and only existence of the property checked.
+        return lambda value: substring in value
     return lambda value: True
 
 
@@ -53,8 +57,8 @@ def _convert_glob_to_regex(property_name, property_value_spec):
         last_component = property_name.split(".")[-1]
         if last_component in FIELDS_REGEX_SHORTCUTS:
             shortcuts = FIELDS_REGEX_SHORTCUTS[last_component]
-            rx = re.compile("|".join(map(re.escape, shortcuts.keys())))
-            property_value_spec = rx.sub(
+            regex = re.compile("|".join(map(re.escape, shortcuts.keys())))
+            property_value_spec = regex.sub(
                 lambda match: shortcuts[match.group(0)], property_value_spec
             )
 

@@ -8,7 +8,6 @@ from typing import Dict, List
 from sarif import sarif_file
 from sarif.sarif_file import SarifFileSet
 
-ATTRIBUTES = ["Severity", "Code", "Location", "Line"]
 TIMESTAMP_COLUMNS = ["Date", "Tool", *sarif_file.SARIF_SEVERITIES]
 
 
