@@ -182,7 +182,7 @@ def _create_arg_parser():
         )
     # Most commands take an arbitrary list of SARIF files or directories
     for cmd in _COMMANDS:
-        if cmd not in ["diff", "usage"]:
+        if cmd not in ["diff", "upgrade-filter", "usage"]:
             subparser[cmd].add_argument(
                 "files_or_dirs",
                 metavar="file_or_dir",
@@ -212,6 +212,16 @@ def _create_arg_parser():
         default="dmy",
         help="Date component order to use in output CSV.  Default is `dmy`",
     )
+
+    subparser["upgrade-filter"].add_argument(
+        "files_or_dirs",
+        metavar="file",
+        type=str,
+        nargs="*",
+        default=["."],
+        help="A v1-style blame-filter file",
+    )
+
     return parser
 
 
@@ -503,7 +513,7 @@ _COMMANDS = {
     },
     "upgrade-filter": {
         "fn": _upgrade_filter,
-        "desc": "Upgrade a v1-style blame filter file to a v2-style filter YAML file",
+        "desc": "Upgrade a sarif-tools v1-style blame filter file to a v2-style filter YAML file",
     },
     "usage": {"fn": _usage, "desc": "(Command optional) - print usage and exit"},
     "word": {

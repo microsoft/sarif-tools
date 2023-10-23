@@ -556,6 +556,22 @@ sarif trend -o timeline.csv "C:\temp\sarif_with_date" --dateformat dmy
 
 See [Filtering](#filtering) below for how to use the `--filter` option.
 
+#### upgrade-filter
+
+```plain
+usage: sarif upgrade-filter [-h] [--output PATH] [file [file ...]]
+
+Upgrade a v1-style blame filter file to a v2-style filter YAML file
+
+positional arguments:
+  file                  A v1-style blame-filter file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output PATH, -o PATH
+                        Output file or directory
+```
+
 #### usage
 
 ```plain
