@@ -58,7 +58,7 @@ def upgrade_filter_file(old_filter_file, output_file):
         "description": filter_description
         if filter_description
         else f"Migrated from {os.path.basename(old_filter_file)}",
-        "configuration": {"default-include": True},
+        "configuration": {"default-include": True, "check-line-number": True},
     }
     if include_patterns:
         new_filter_definition["include"] = [
@@ -68,6 +68,6 @@ def upgrade_filter_file(old_filter_file, output_file):
         new_filter_definition["exclude"] = [
             {"author-mail": exclude_pattern} for exclude_pattern in exclude_patterns
         ]
-    with open(output_file, "wb") as yaml_out:
+    with open(output_file, "w", encoding="utf8") as yaml_out:
         yaml.dump(new_filter_definition, yaml_out)
     print("Wrote", output_file)

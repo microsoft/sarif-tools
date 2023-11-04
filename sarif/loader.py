@@ -33,7 +33,7 @@ def load_sarif_files(*args) -> SarifFileSet:
                     if _add_path_to_sarif_file_set(resolved_path, ret):
                         path_exists = True
             if not path_exists:
-                print(f"Warning: path {path} not found")
+                print(f"Warning: input path {path} not found")
     return ret
 
 

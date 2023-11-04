@@ -10,6 +10,7 @@ import copy
 import jsonpath_ng.ext
 import yaml
 
+from sarif import sarif_file_utils
 from sarif.filter.filter_stats import FilterStats, load_filter_stats_from_json
 
 # Commonly used properties can be specified using shortcuts
@@ -31,6 +32,7 @@ FIELDS_REGEX_SHORTCUTS = {"uri": {"**": ".*", "*": "[^/]*", "?": "."}}
 # Default configuration for all filters
 DEFAULT_CONFIGURATION = {
     "default-include": True,
+    "check-line-number": True,
 }
 
 
@@ -77,7 +79,7 @@ class GeneralFilter:
         self.apply_inclusion_filter = False
         self.exclude_filters = {}
         self.apply_exclusion_filter = False
-        self.configuration = DEFAULT_CONFIGURATION
+        self.configuration = DEFAULT_CONFIGURATION.copy()
 
     def init_filter(
         self, filter_description, configuration, include_filters, exclude_filters
@@ -114,6 +116,8 @@ class GeneralFilter:
         if self.apply_inclusion_filter:
             included_stats = self._filter_result(result, self.include_filters)
             if not included_stats["matchedFilter"]:
+                # Result is excluded by dint of not being included
+                self.filter_stats.filtered_out_result_count += 1
                 return
         else:
             # no inclusion filters, mark the result as included so far
@@ -125,8 +129,11 @@ class GeneralFilter:
                 self.filter_stats.filtered_out_result_count += 1
                 return
 
-        if included_stats["state"] == "included":
+        included_state = included_stats["state"]
+        if included_state == "included":
             self.filter_stats.filtered_in_result_count += 1
+        elif included_state == "noLineNumber":
+            self.filter_stats.unconvincing_line_number_count += 1
         else:
             self.filter_stats.missing_property_count += 1
         included_stats["filter"] = self.filter_stats.filter_description
@@ -137,8 +144,12 @@ class GeneralFilter:
     def _filter_result(self, result: dict, filters: List[str]) -> dict:
         matched_filters = []
         warnings = []
+        (_file_path, line_number) = sarif_file_utils.read_result_location(result)
+        unconvincing_line_number = line_number == "1" or not line_number
+        default_include_noprop = False
+
         if filters:
-            # filters contains rules which treated as OR.
+            # filters contain rules which treated as OR.
             # if any rule matches, the record is selected.
             for filter_spec in filters:
                 # filter_spec contains rules which treated as AND.
@@ -148,6 +159,15 @@ class GeneralFilter:
                     resolved_prop_path = FILTER_SHORTCUTS.get(prop_path, prop_path)
                     jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
                     filter_configuration = self.configuration
+
+                    if (
+                        filter_configuration.get("check-line-number", True)
+                        and unconvincing_line_number
+                    ):
+                        warnings.append(
+                            f"Field '{prop_path}' not checked due to missing line number information"
+                        )
+                        continue
 
                     # if prop_value_spec is a dict, update filter configuration from it
                     if isinstance(prop_value_spec, dict):
@@ -166,12 +186,13 @@ class GeneralFilter:
                         if filter_function(value):
                             continue
                     else:
-                        # property to filter on is not found.
+                        # property to filter on is not found, or not checked due to invalid line number.
                         # if "default-include" is true, include the "result" with a warning.
                         if filter_configuration.get("default-include", True):
                             warnings.append(
                                 f"Field '{prop_path}' is missing but the result included as default-include is true"
                             )
+                            default_include_noprop = True
                             continue
                     matched = False
                     break
@@ -187,7 +208,7 @@ class GeneralFilter:
         if warnings:
             stats.update(
                 {
-                    "state": "default",
+                    "state": "noProperty" if default_include_noprop else "noLineNumber",
                     "warnings": warnings,
                 }
             )

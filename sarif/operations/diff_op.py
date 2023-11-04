@@ -105,21 +105,21 @@ def _find_new_occurrences(new_records, old_records, issue_code_and_desc):
     ]
     new_occurrences_new_locations = []
     new_occurrences_new_lines = []
-    for r in new_records:
-        if sarif_file.combine_code_and_description(r) == issue_code_and_desc:
+    for new_record in new_records:
+        if sarif_file.combine_code_and_description(new_record) == issue_code_and_desc:
             (new_location, new_line) = (True, True)
-            for old_r in old_occurrences:
-                if old_r["Location"] == r["Location"]:
+            for old_record in old_occurrences:
+                if old_record["Location"] == new_record["Location"]:
                     new_location = False
-                    if old_r["Line"] == r["Line"]:
+                    if old_record["Line"] == new_record["Line"]:
                         new_line = False
                         break
             if new_location:
-                if r not in new_occurrences_new_locations:
-                    new_occurrences_new_locations.append(r)
+                if new_record not in new_occurrences_new_locations:
+                    new_occurrences_new_locations.append(new_record)
             elif new_line:
-                if r not in new_occurrences_new_lines:
-                    new_occurrences_new_lines.append(r)
+                if new_record not in new_occurrences_new_lines:
+                    new_occurrences_new_lines.append(new_record)
 
     return sorted(
         new_occurrences_new_locations, key=_record_to_location_tuple
