@@ -1,5 +1,5 @@
 import pytest
-from sarif.filter.general_filter import GeneralFilter, load_filter_file
+from sarif.filter.general_filter import GeneralFilter, PropertyFilter, load_filter_file
 from sarif.filter.filter_stats import load_filter_stats_from_json
 
 
@@ -14,10 +14,27 @@ class TestGeneralFilter:
             [{"suppression": "not a suppression"}],
         )
         assert gf.filter_stats.filter_description == "test filter"
-        assert gf.include_filters == [{"author": "John Doe"}]
+        assert len(gf.include_filters[0].and_terms) == 1
+        assert gf.include_filters[0].and_terms[0].prop_path == "author"
         assert gf.apply_inclusion_filter is True
-        assert gf.exclude_filters == [{"suppression": "not a suppression"}]
+        assert len(gf.exclude_filters[0].and_terms) == 1
+        assert gf.exclude_filters[0].and_terms[0].prop_path == "suppression"
         assert gf.apply_exclusion_filter is True
+
+    def test_init_filter_no_value(self):
+        gf = GeneralFilter()
+
+        gf.init_filter(
+            "test filter",
+            {},
+            [{"author": {"default-include": False}}],  # forgot "value"
+            [],
+        )
+        assert gf.filter_stats.filter_description == "test filter"
+        assert len(gf.include_filters[0].and_terms) == 1
+        assert gf.include_filters[0].and_terms[0].prop_path == "author"
+        assert gf.apply_inclusion_filter is True
+        assert not gf.exclude_filters
 
     def test_rehydrate_filter_stats(self):
         gf = GeneralFilter()

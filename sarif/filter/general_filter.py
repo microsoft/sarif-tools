@@ -36,7 +36,7 @@ DEFAULT_CONFIGURATION = {
 }
 
 
-def get_filter_function(filter_spec):
+def _get_filter_function(filter_spec):
     """Return a filter function for the given specification."""
     if filter_spec:
         filter_len = len(filter_spec)
@@ -68,6 +68,68 @@ def _convert_glob_to_regex(property_name, property_value_spec):
     return property_value_spec
 
 
+class PropertyFilter:
+    """
+    Class that represents a filter term ready for efficient use.
+    """
+
+    def __init__(self, prop_path, prop_value_spec, global_configuration):
+        """
+        Compile a filter property.  See README for the filter spec format.
+
+        :param prop_path: JsonPath or preset.
+        :param prop_value_spec: Value spec.
+        :param global_configuration: Global configuration of the filter.
+        """
+        self.prop_path = prop_path
+        resolved_prop_path = FILTER_SHORTCUTS.get(prop_path, prop_path)
+        self.jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
+
+        # if prop_value_spec is a dict, update filter configuration from it
+        if isinstance(prop_value_spec, dict):
+            self.filter_configuration = copy.deepcopy(global_configuration)
+            for config_key, config_value in prop_value_spec.items():
+                if config_key != "value":
+                    self.filter_configuration[config_key] = config_value
+            # actual value for the filter is in "value" key
+            prop_value_spec = prop_value_spec.get("value", "")
+        else:
+            self.filter_configuration = global_configuration
+        value_spec = _convert_glob_to_regex(resolved_prop_path, prop_value_spec)
+        self.filter_function = _get_filter_function(value_spec)
+
+
+class MultiPropertyFilter:
+    """
+    Class representing a list of PropertyFilter objects.
+
+    These are combined using AND to filter results.
+    """
+
+    def __init__(self, filter_spec: List[dict], global_filter_configuration: dict):
+        """
+        Initialise from a filter spec.
+
+        See README for filter spec format.  It's a list of property paths and values to be
+        combined with AND to form a filter.
+        """
+        self.filter_spec = filter_spec
+        self.and_terms = [
+            PropertyFilter(prop_path, prop_value_spec, global_filter_configuration)
+            for prop_path, prop_value_spec in filter_spec.items()
+        ]
+
+
+def _compile_filters(
+    filters: List[dict], global_filter_configuration: dict
+) -> List[MultiPropertyFilter]:
+    return [
+        MultiPropertyFilter(filter_spec, global_filter_configuration)
+        for filter_spec in filters
+        if filter_spec
+    ]
+
+
 class GeneralFilter:
     """
     Class that implements filtering.
@@ -79,7 +141,7 @@ class GeneralFilter:
         self.apply_inclusion_filter = False
         self.exclude_filters = {}
         self.apply_exclusion_filter = False
-        self.configuration = DEFAULT_CONFIGURATION.copy()
+        self.configuration = copy.deepcopy(DEFAULT_CONFIGURATION)
 
     def init_filter(
         self, filter_description, configuration, include_filters, exclude_filters
@@ -88,11 +150,11 @@ class GeneralFilter:
         Initialise the filter with the given filter patterns.
         """
         self.filter_stats = FilterStats(filter_description)
-        self.include_filters = include_filters
-        self.apply_inclusion_filter = len(include_filters) > 0
-        self.exclude_filters = exclude_filters
-        self.apply_exclusion_filter = len(exclude_filters) > 0
         self.configuration.update(configuration)
+        self.include_filters = _compile_filters(include_filters, self.configuration)
+        self.apply_inclusion_filter = len(include_filters) > 0
+        self.exclude_filters = _compile_filters(exclude_filters, self.configuration)
+        self.apply_exclusion_filter = len(exclude_filters) > 0
 
     def rehydrate_filter_stats(self, dehydrated_filter_stats, filter_datetime):
         """
@@ -141,7 +203,7 @@ class GeneralFilter:
 
         filtered_results.append(result)
 
-    def _filter_result(self, result: dict, filters: List[str]) -> dict:
+    def _filter_result(self, result: dict, filters: List[MultiPropertyFilter]) -> dict:
         matched_filters = []
         warnings = []
         (_file_path, line_number) = sarif_file_utils.read_result_location(result)
@@ -151,53 +213,43 @@ class GeneralFilter:
         if filters:
             # filters contain rules which treated as OR.
             # if any rule matches, the record is selected.
-            for filter_spec in filters:
+            for mpf in filters:
                 # filter_spec contains rules which treated as AND.
                 # all rules must match to select the record.
                 matched = True
-                for prop_path, prop_value_spec in filter_spec.items():
-                    resolved_prop_path = FILTER_SHORTCUTS.get(prop_path, prop_path)
-                    jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
-                    filter_configuration = self.configuration
-
+                for property_filter in mpf.and_terms:
                     if (
-                        filter_configuration.get("check-line-number", True)
+                        property_filter.filter_configuration.get(
+                            "check-line-number", True
+                        )
                         and unconvincing_line_number
                     ):
                         warnings.append(
-                            f"Field '{prop_path}' not checked due to missing line number information"
+                            f"Field '{property_filter.prop_path}' not checked due to "
+                            "missing line number information"
                         )
                         continue
-
-                    # if prop_value_spec is a dict, update filter configuration from it
-                    if isinstance(prop_value_spec, dict):
-                        filter_configuration = copy.deepcopy(self.configuration)
-                        filter_configuration.update(prop_value_spec)
-                        # actual value for the filter is in "value" key
-                        prop_value_spec = prop_value_spec.get("value", None)
-
-                    found_results = jsonpath_expr.find(result)
+                    found_results = property_filter.jsonpath_expr.find(result)
                     if found_results:
                         value = found_results[0].value
-                        value_spec = _convert_glob_to_regex(
-                            resolved_prop_path, prop_value_spec
-                        )
-                        filter_function = get_filter_function(value_spec)
-                        if filter_function(value):
+                        if property_filter.filter_function(value):
                             continue
                     else:
-                        # property to filter on is not found, or not checked due to invalid line number.
+                        # property to filter on is not found, or skipped due to invalid line number.
                         # if "default-include" is true, include the "result" with a warning.
-                        if filter_configuration.get("default-include", True):
+                        if property_filter.filter_configuration.get(
+                            "default-include", True
+                        ):
                             warnings.append(
-                                f"Field '{prop_path}' is missing but the result included as default-include is true"
+                                f"Field '{property_filter.prop_path}' is missing but "
+                                "the result included as default-include is true"
                             )
                             default_include_noprop = True
                             continue
                     matched = False
                     break
                 if matched:
-                    matched_filters.append(filter_spec)
+                    matched_filters.append(mpf.filter_spec)
                     break
 
         stats = {
