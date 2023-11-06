@@ -9,6 +9,7 @@ import os
 import re
 from typing import Dict, Iterator, List, Optional, Tuple
 
+from sarif import sarif_file_utils
 from sarif.filter.general_filter import GeneralFilter
 from sarif.filter.filter_stats import FilterStats
 
@@ -41,40 +42,6 @@ def has_sarif_file_extension(filename):
     """
     filename_upper = filename.upper().strip()
     return any(filename_upper.endswith(x) for x in [".SARIF", ".SARIF.JSON"])
-
-
-def _read_result_location(result) -> Tuple[str, str]:
-    """
-    Extract the file path and line number strings from the Result.
-    Tools store this in different ways, so this function tries a few different JSON locations.
-    """
-    file_path = None
-    line_number = None
-    locations = result.get("locations", [])
-    if locations:
-        location = locations[0]
-        physical_location = location.get("physicalLocation", {})
-        # SpotBugs has some errors with no line number so deal with them by just leaving it at 1
-        line_number = physical_location.get("region", {}).get("startLine", None)
-        # For file name, first try the location written by DevSkim
-        file_path = (
-            location.get("physicalLocation", {})
-            .get("address", {})
-            .get("fullyQualifiedName", None)
-        )
-        if not file_path:
-            # Next try the physical location written by MobSF and by SpotBugs (for some errors)
-            file_path = (
-                location.get("physicalLocation", {})
-                .get("artifactLocation", {})
-                .get("uri", None)
-            )
-        if not file_path:
-            logical_locations = location.get("logicalLocations", None)
-            if logical_locations:
-                # Finally, try the logical location written by SpotBugs for some errors
-                file_path = logical_locations[0].get("fullyQualifiedName", None)
-    return (file_path, line_number)
 
 
 def _group_records_by_severity(records) -> Dict[str, List[Dict]]:
@@ -294,7 +261,7 @@ class SarifRun:
         """
         error_id = result["ruleId"]
         tool_name = self.get_tool_name()
-        (file_path, line_number) = _read_result_location(result)
+        (file_path, line_number) = sarif_file_utils.read_result_location(result)
         if not file_path:
             # Result having non-empty location is only a "SHOULD" in the SARIF spec 3.27.12.
             # Some tools such as GCC 13 can output issues with no location.

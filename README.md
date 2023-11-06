@@ -556,6 +556,22 @@ sarif trend -o timeline.csv "C:\temp\sarif_with_date" --dateformat dmy
 
 See [Filtering](#filtering) below for how to use the `--filter` option.
 
+#### upgrade-filter
+
+```plain
+usage: sarif upgrade-filter [-h] [--output PATH] [file [file ...]]
+
+Upgrade a v1-style blame filter file to a v2-style filter YAML file
+
+positional arguments:
+  file                  A v1-style blame-filter file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --output PATH, -o PATH
+                        Output file or directory
+```
+
 #### usage
 
 ```plain
@@ -626,14 +642,22 @@ description: Example filter from README.md
 
 # Optional configuration section to override default values.
 configuration:
-  # This option controls whether to include results where a property to check is missing, default value is true.
+  # This option controls whether to include results where a property to check is missing, default
+  # value is true.
   default-include: false
+  # This option only applies filter criteria if the line number is present and not equal to 1.
+  # Some static analysis tools set the line number to 1 for whole file issues, but this does not
+  # work with blame filtering, because who last changed line 1 is irrelevant.  Default value is
+  # true
+  check-line-number: true
 
 # Items in `include` list are interpreted as inclusion filtering rules.
 # Items are treated with OR operator, the filtered results includes objects matching any rule.
-# Each item can be one rule or a list of rules, in the latter case rules in the list are treated with AND operator - all rules must match.
+# Each item can be one rule or a list of rules, in the latter case rules in the list are treated
+# with AND operator - all rules must match.
 include:
-  # The following line includes issues whose author-mail property contains "@microsoft.com" AND found in Java files.
+  # The following line includes issues whose author-mail property contains "@microsoft.com" AND
+  # found in Java files.
   # Values with special characters `\:;_()$%^@,` must be enclosed in quotes (single or double):
   - author-mail: "@microsoft.com"
     locations[*].physicalLocation.artifactLocation.uri: "*.java"
@@ -642,12 +666,13 @@ include:
   # Use ^ and $ to match the whole committer-mail property.
   - committer-mail:
       value: "/^<myname.*\\.com>$/"
-      # Configuration options can be overriden for any rule.
+      # Configuration options can be overridden for any rule.
       default-include: true
-
+      check-line-number: true
 # Lines under `exclude` are interpreted as exclusion filtering rules.
 exclude:
-  # The following line excludes issues whose location is in test Java files with names starting with the "Test" prefix.
+  # The following line excludes issues whose location is in test Java files with names starting with
+  #  the "Test" prefix.
   - location: "Test*.java"
   # The value for the property can be empty, in this case only existence of the property is checked.
   - suppression:

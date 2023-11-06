@@ -22,6 +22,7 @@ from sarif.operations import (
     ls_op,
     summary_op,
     trend_op,
+    upgrade_filter_op,
     word_op,
 )
 
@@ -30,7 +31,7 @@ def main():
     """
     Entry point function.
     """
-    args = ARG_PARSER.parse_args()
+    args, unknown_args = ARG_PARSER.parse_known_args()
 
     if args.debug:
         print(f"SARIF tools v{SARIF_TOOLS_PACKAGE_VERSION}")
@@ -39,6 +40,19 @@ def main():
             f"{key}={getattr(args, key)}" for key in vars(args)
         )
         print(f"Known arguments: {known_args_summary}")
+
+    if unknown_args:
+        if any(
+            unknown_arg.startswith("--blame-filter")
+            or unknown_arg.startswith("-b=")
+            or unknown_arg == "-b"
+            for unknown_arg in unknown_args
+        ):
+            print("ERROR: --blame-filter was removed in v2.0.0.")
+            print(
+                "Run the upgrade-filter command to convert your blame filter to the new filter format, then pass via --filter option."
+            )
+        args = ARG_PARSER.parse_args()
 
     exitcode = args.func(args)
     return exitcode
@@ -84,7 +98,16 @@ def _create_arg_parser():
         + "(or for diff, an increase in issues at that level).",
     )
 
-    for cmd in ["blame", "codeclimate", "csv", "html", "emacs", "summary", "word"]:
+    for cmd in [
+        "blame",
+        "codeclimate",
+        "csv",
+        "html",
+        "emacs",
+        "summary",
+        "word",
+        "upgrade-filter",
+    ]:
         subparser[cmd].add_argument(
             "--output", "-o", type=str, metavar="PATH", help="Output file or directory"
         )
@@ -159,7 +182,7 @@ def _create_arg_parser():
         )
     # Most commands take an arbitrary list of SARIF files or directories
     for cmd in _COMMANDS:
-        if cmd not in ["diff", "usage"]:
+        if cmd not in ["diff", "upgrade-filter", "usage"]:
             subparser[cmd].add_argument(
                 "files_or_dirs",
                 metavar="file_or_dir",
@@ -189,6 +212,16 @@ def _create_arg_parser():
         default="dmy",
         help="Date component order to use in output CSV.  Default is `dmy`",
     )
+
+    subparser["upgrade-filter"].add_argument(
+        "files_or_dirs",
+        metavar="file",
+        type=str,
+        nargs="*",
+        default=["."],
+        help="A v1-style blame-filter file",
+    )
+
     return parser
 
 
@@ -391,6 +424,27 @@ def _trend(args):
     return _check(input_files, args.check)
 
 
+def _upgrade_filter(args):
+    old_filter_files = args.files_or_dirs
+    single_output_file = None
+    output_dir = None
+    if len(old_filter_files) == 1:
+        if args.output and os.path.isdir(args.output):
+            output_dir = args.output
+        else:
+            single_output_file = args.output or old_filter_files[0] + ".yaml"
+    elif args.output:
+        output_dir = args.output
+    else:
+        output_dir = os.path.dirname(args.output)
+    for old_filter_file in old_filter_files:
+        output_file = single_output_file or os.path.join(
+            output_dir, os.path.basename(old_filter_file) + ".yaml"
+        )
+        upgrade_filter_op.upgrade_filter_file(old_filter_file, output_file)
+    return 0
+
+
 def _usage(args):
     if hasattr(args, "output") and args.output:
         with open(args.output, "w", encoding="utf-8") as file_out:
@@ -456,6 +510,10 @@ _COMMANDS = {
         "fn": _trend,
         "desc": "Write a CSV file with time series data from SARIF files with "
         '"yyyymmddThhmmssZ" timestamps in their filenames',
+    },
+    "upgrade-filter": {
+        "fn": _upgrade_filter,
+        "desc": "Upgrade a sarif-tools v1-style blame filter file to a v2-style filter YAML file",
     },
     "usage": {"fn": _usage, "desc": "(Command optional) - print usage and exit"},
     "word": {

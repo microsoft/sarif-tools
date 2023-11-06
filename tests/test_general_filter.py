@@ -1,5 +1,5 @@
 import pytest
-from sarif.filter.general_filter import GeneralFilter, load_filter_file
+from sarif.filter.general_filter import GeneralFilter, PropertyFilter, load_filter_file
 from sarif.filter.filter_stats import load_filter_stats_from_json
 
 
@@ -14,10 +14,27 @@ class TestGeneralFilter:
             [{"suppression": "not a suppression"}],
         )
         assert gf.filter_stats.filter_description == "test filter"
-        assert gf.include_filters == [{"author": "John Doe"}]
+        assert len(gf.include_filters[0].and_terms) == 1
+        assert gf.include_filters[0].and_terms[0].prop_path == "author"
         assert gf.apply_inclusion_filter is True
-        assert gf.exclude_filters == [{"suppression": "not a suppression"}]
+        assert len(gf.exclude_filters[0].and_terms) == 1
+        assert gf.exclude_filters[0].and_terms[0].prop_path == "suppression"
         assert gf.apply_exclusion_filter is True
+
+    def test_init_filter_no_value(self):
+        gf = GeneralFilter()
+
+        gf.init_filter(
+            "test filter",
+            {},
+            [{"author": {"default-include": False}}],  # forgot "value"
+            [],
+        )
+        assert gf.filter_stats.filter_description == "test filter"
+        assert len(gf.include_filters[0].and_terms) == 1
+        assert gf.include_filters[0].and_terms[0].prop_path == "author"
+        assert gf.apply_inclusion_filter is True
+        assert not gf.exclude_filters
 
     def test_rehydrate_filter_stats(self):
         gf = GeneralFilter()
@@ -46,7 +63,9 @@ class TestGeneralFilter:
 
     def test_filter_append_include(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [{"ruleId": "test-rule"}], [])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [{"ruleId": "test-rule"}], []
+        )
         result = {"ruleId": "test-rule"}
 
         filtered_results = general_filter.filter_results([result])
@@ -71,7 +90,7 @@ class TestGeneralFilter:
 
     def test_filter_append_no_filters(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [], [])
+        general_filter.init_filter("test filter", {"check-line-number": False}, [], [])
         result = {"ruleId": "test-rule"}
 
         filtered_results = general_filter.filter_results([result])
@@ -82,7 +101,10 @@ class TestGeneralFilter:
     def test_filter_results_match(self):
         general_filter = GeneralFilter()
         general_filter.init_filter(
-            "test filter", {}, [{"ruleId": "test-rule"}, {"level": "error"}], []
+            "test filter",
+            {"check-line-number": False},
+            [{"ruleId": "test-rule"}, {"level": "error"}],
+            [],
         )
         result = {"ruleId": "test-rule", "level": "error"}
 
@@ -101,7 +123,10 @@ class TestGeneralFilter:
     def test_filter_results_no_match(self):
         general_filter = GeneralFilter()
         general_filter.init_filter(
-            "test filter", {}, [{"ruleId": "other-rule"}, {"level": "warning"}], []
+            "test filter",
+            {"check-line-number": False},
+            [{"ruleId": "other-rule"}, {"level": "warning"}],
+            [],
         )
         result = {"ruleId": "test-rule", "level": "error"}
 
@@ -113,13 +138,14 @@ class TestGeneralFilter:
         rule = {"properties.blame.author-mail": "/myname\\..*\\.com/"}
         general_filter.init_filter(
             "test filter",
-            {},
+            {"check-line-number": True},
             [rule],
             [],
         )
         result = {
             "ruleId": "test-rule",
             "properties": {"blame": {"author-mail": "user@myname.example.com"}},
+            "locations": [{"physicalLocation": {"region": {"startLine": "123"}}}],
         }
 
         filtered_results = general_filter.filter_results([result])
@@ -136,7 +162,7 @@ class TestGeneralFilter:
         }
         general_filter.init_filter(
             "test filter",
-            {},
+            {"check-line-number": False},
             [guid_rule],
             [],
         )
@@ -157,7 +183,9 @@ class TestGeneralFilter:
 
     def test_filter_results_existence_only(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [], [{"suppression": {}}])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [], [{"suppression": {}}]
+        )
         result = {"ruleId": "test-rule", "suppressions": [{"kind": "inSource"}]}
 
         filtered_results = general_filter.filter_results([result])
@@ -165,13 +193,15 @@ class TestGeneralFilter:
 
     def test_filter_results_match_default_include_default_configuration(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [{"level": "error"}], [])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [{"level": "error"}], []
+        )
         result = {"ruleId": "test-rule"}
 
         filtered_results = general_filter.filter_results([result])
         assert len(filtered_results) == 1
         assert filtered_results[0] == result
-        assert filtered_results[0]["properties"]["filtered"]["state"] == "default"
+        assert filtered_results[0]["properties"]["filtered"]["state"] == "noProperty"
         assert filtered_results[0]["properties"]["filtered"]["warnings"] == [
             "Field 'level' is missing but the result included as default-include is true"
         ]
@@ -179,11 +209,31 @@ class TestGeneralFilter:
         assert general_filter.filter_stats.filtered_out_result_count == 0
         assert general_filter.filter_stats.missing_property_count == 1
 
+    def test_filter_results_check_line_number(self):
+        general_filter = GeneralFilter()
+        general_filter.init_filter("test filter", {}, [{"level": "error"}], [])
+        result = {
+            "ruleId": "test-rule",
+            "locations": [{"physicalLocation": {"region": {"startLine": "1"}}}],
+        }
+
+        filtered_results = general_filter.filter_results([result])
+        assert len(filtered_results) == 1
+        assert filtered_results[0] == result
+        assert filtered_results[0]["properties"]["filtered"]["state"] == "noLineNumber"
+        assert filtered_results[0]["properties"]["filtered"]["warnings"] == [
+            "Field 'level' not checked due to missing line number information"
+        ]
+        assert general_filter.filter_stats.filtered_in_result_count == 0
+        assert general_filter.filter_stats.filtered_out_result_count == 0
+        assert general_filter.filter_stats.missing_property_count == 0
+        assert general_filter.filter_stats.unconvincing_line_number_count == 1
+
     def test_filter_results_match_default_include_rule_override(self):
         general_filter = GeneralFilter()
         general_filter.init_filter(
             "test filter",
-            {},
+            {"check-line-number": False},
             [{"level": {"value": "error", "default-include": False}}],
             [],
         )
@@ -192,7 +242,8 @@ class TestGeneralFilter:
         filtered_results = general_filter.filter_results([result])
         assert len(filtered_results) == 0
         assert general_filter.filter_stats.filtered_in_result_count == 0
-        assert general_filter.filter_stats.filtered_out_result_count == 0
+        # Filtered out because not filtered in
+        assert general_filter.filter_stats.filtered_out_result_count == 1
         assert general_filter.filter_stats.missing_property_count == 0
 
     SHORTCUTS_TEST_PARAMS = [
@@ -220,7 +271,9 @@ class TestGeneralFilter:
     @pytest.mark.parametrize("shortcut_filter,result", SHORTCUTS_TEST_PARAMS)
     def test_filter_results_shortcuts(self, shortcut_filter, result):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [shortcut_filter], [])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [shortcut_filter], []
+        )
 
         filtered_results = general_filter.filter_results([result])
         assert len(filtered_results) == 1
@@ -230,7 +283,9 @@ class TestGeneralFilter:
 
     def test_filter_results_include(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [{"ruleId": "test-rule"}], [])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [{"ruleId": "test-rule"}], []
+        )
         results = [{"ruleId": "test-rule"}] * 10
 
         filtered_results = general_filter.filter_results(results)
@@ -242,7 +297,9 @@ class TestGeneralFilter:
 
     def test_filter_results_exclude(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [], [{"level": "error"}])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [], [{"level": "error"}]
+        )
         results = [{"level": "error"}] * 10
 
         filtered_results = general_filter.filter_results(results)
@@ -253,7 +310,9 @@ class TestGeneralFilter:
 
     def test_filter_results_exclude_not_all(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [], [{"level": "error"}])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [], [{"level": "error"}]
+        )
         results = [{"level": "error"}, {"level": "warning"}, {"level": "error"}]
 
         filtered_results = general_filter.filter_results(results)
@@ -266,7 +325,7 @@ class TestGeneralFilter:
 
     def test_filter_results_no_filters(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [], [])
+        general_filter.init_filter("test filter", {"check-line-number": False}, [], [])
         results = [{"ruleId": "test-rule"}] * 10
 
         filtered_results = general_filter.filter_results(results)
@@ -278,7 +337,9 @@ class TestGeneralFilter:
 
     def test_get_filter_stats(self):
         general_filter = GeneralFilter()
-        general_filter.init_filter("test filter", {}, [{"ruleId": "test-rule"}], [])
+        general_filter.init_filter(
+            "test filter", {"check-line-number": False}, [{"ruleId": "test-rule"}], []
+        )
         results = [{"ruleId": "test-rule"}] * 10
 
         general_filter.filter_results(results)
