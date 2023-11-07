@@ -49,6 +49,7 @@ def _load_blame_filter_file(file_path):
 
 
 def upgrade_filter_file(old_filter_file, output_file):
+    """Convert blame filter file to general filter file."""
     (
         filter_description,
         include_patterns,
