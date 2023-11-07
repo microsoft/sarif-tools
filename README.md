@@ -648,7 +648,7 @@ configuration:
   # This option only applies filter criteria if the line number is present and not equal to 1.
   # Some static analysis tools set the line number to 1 for whole file issues, but this does not
   # work with blame filtering, because who last changed line 1 is irrelevant.  Default value is
-  # true
+  # true.
   check-line-number: true
 
 # Items in `include` list are interpreted as inclusion filtering rules.
@@ -682,6 +682,9 @@ Here's an example of a filter-file that includes issues on lines changed by an `
 
 ```yaml
 description: Example filter from README.md
+configuration:
+  default-include: true
+  check-line-number: true
 include:
   - author-mail: "@microsoft.com"
   - author-mail: "/myname\\..*\\.com/"
