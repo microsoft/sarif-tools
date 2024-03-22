@@ -2,4 +2,4 @@ import sarif
 
 
 def test_version():
-    assert sarif.__version__ == "1.0.0"
+    assert sarif.__version__ == "2.0.0"
