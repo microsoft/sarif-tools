@@ -1,6 +1,7 @@
 """
 Top-level version information for sarif-tools.
 """
+
 import importlib.metadata
 
 

@@ -155,9 +155,11 @@ class SarifRun:
                     filter_date = conversion_driver["properties"].get("processed", None)
                     self._filter.rehydrate_filter_stats(
                         dehydrated_filter_stats,
-                        datetime.datetime.fromisoformat(filter_date)
-                        if filter_date
-                        else None,
+                        (
+                            datetime.datetime.fromisoformat(filter_date)
+                            if filter_date
+                            else None
+                        ),
                     )
 
     def init_path_prefix_stripping(self, autotrim=False, path_prefixes=None):
@@ -327,9 +329,11 @@ class SarifRun:
             "Line": line_number,
             "Severity": severity,
             "Code": error_id,
-            "Description": message[len(error_id) + 1].strip()
-            if message.startswith(error_id) and len(message) > len(error_id) + 1
-            else message,
+            "Description": (
+                message[len(error_id) + 1].strip()
+                if message.startswith(error_id) and len(message) > len(error_id) + 1
+                else message
+            ),
         }
         if include_blame_info:
             record["Author"] = _get_author_mail_from_blame_info(
