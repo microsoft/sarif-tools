@@ -7,12 +7,15 @@ import copy
 import datetime
 import os
 import re
+import textwrap
 from typing import Dict, Iterator, List, Optional, Tuple
 
 from sarif import sarif_file_utils
 from sarif.filter.general_filter import GeneralFilter
 from sarif.filter.filter_stats import FilterStats
 
+# SARIF severity levels as per
+# https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
 _SARIF_SEVERITIES_WITHOUT_NONE = ["error", "warning", "note"]
 SARIF_SEVERITIES_WITH_NONE = ["error", "warning", "note", "none"]
 
@@ -63,7 +66,7 @@ def _count_records_by_issue_code(records, severity) -> List[Tuple]:
     code_to_count = {}
     for record in records:
         if record["Severity"] == severity:
-            code = combine_code_and_description(record)
+            code = record["Code"].strip()
             code_to_count[code] = code_to_count.get(code, 0) + 1
     return sorted(code_to_count.items(), key=lambda x: x[1], reverse=True)
 
@@ -87,12 +90,25 @@ def combine_code_and_description(record: dict) -> str:
     Combine code and description fields into one string.
     """
     (code, description) = (record["Code"], record["Description"])
-    if code and description:
-        return f"{code.strip()} {description.strip()}"
-    if code:
-        return code.strip()
     if description:
-        return description.strip()
+        if "\n" in description:
+            description = description[: description.index("\n")]
+        description = description.strip()
+    if description:
+        if len(description) > 120:
+            shorter_description = textwrap.shorten(
+                description, width=103, placeholder="..."
+            )
+            if len(shorter_description) < 40:
+                description = description[:100] + "..."
+            else:
+                description = shorter_description
+        if code:
+            return f"{code.strip()} {description}"
+        else:
+            return description
+    elif code:
+        return code.strip()
     return "<NONE>"
 
 
