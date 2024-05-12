@@ -8,7 +8,7 @@ from typing import Dict, List
 from sarif import sarif_file
 from sarif.sarif_file import SarifFileSet
 
-TIMESTAMP_COLUMNS = ["Date", "Tool", *sarif_file.SARIF_SEVERITIES]
+TIMESTAMP_COLUMNS = ["Date", "Tool", *sarif_file.SARIF_SEVERITIES_WITH_NONE]
 
 
 def generate_trend_csv(input_files: SarifFileSet, output_file: str, dateformat: str):
@@ -78,7 +78,7 @@ def _store_errors(timestamp, excel_date, tool: str, list_of_errors: List[Dict]) 
         "Date": excel_date,
         "Tool": tool,
     }
-    for severity in sarif_file.SARIF_SEVERITIES:
+    for severity in sarif_file.SARIF_SEVERITIES_WITH_NONE:
         error_count = sum(1 for e in list_of_errors if severity in e["Severity"])
         results[severity] = error_count
 

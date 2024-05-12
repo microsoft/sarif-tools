@@ -41,7 +41,7 @@ def print_diff(
         with open(output, "w", encoding="utf-8") as output_file:
             json.dump(diff, output_file, indent=4)
     else:
-        for severity in sarif_file.SARIF_SEVERITIES:
+        for severity in sarif_file.SARIF_SEVERITIES_WITH_NONE:
             if diff[severity]["codes"]:
                 print(
                     severity,
@@ -86,7 +86,7 @@ def print_diff(
         print(f"  'After' results were filtered by {filter_stats}")
     ret = 0
     if check_level:
-        for severity in sarif_file.SARIF_SEVERITIES:
+        for severity in sarif_file.SARIF_SEVERITIES_WITH_NONE:
             ret += diff.get(severity, {}).get("+", 0)
             if severity == check_level:
                 break
@@ -136,7 +136,7 @@ def calc_diff(
     Return dict has keys "error", "warning", "note" and "all".
     """
     ret = {"all": {"+": 0, "-": 0}}
-    for severity in sarif_file.SARIF_SEVERITIES:
+    for severity in sarif_file.SARIF_SEVERITIES_WITH_NONE:
         original_histogram = dict(original_sarif.get_issue_code_histogram(severity))
         new_histogram = new_sarif.get_issue_code_histogram(severity)
         new_histogram_dict = dict(new_histogram)

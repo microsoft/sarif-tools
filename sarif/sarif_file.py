@@ -13,7 +13,8 @@ from sarif import sarif_file_utils
 from sarif.filter.general_filter import GeneralFilter
 from sarif.filter.filter_stats import FilterStats
 
-SARIF_SEVERITIES = ["error", "warning", "note"]
+_SARIF_SEVERITIES_WITHOUT_NONE = ["error", "warning", "note"]
+SARIF_SEVERITIES_WITH_NONE = ["error", "warning", "note", "none"]
 
 BASIC_RECORD_ATTRIBUTES = [
     "Tool",
@@ -44,13 +45,13 @@ def has_sarif_file_extension(filename):
     return any(filename_upper.endswith(x) for x in [".SARIF", ".SARIF.JSON"])
 
 
-def _group_records_by_severity(records) -> Dict[str, List[Dict]]:
+def _group_records_by_severity(records, severities) -> Dict[str, List[Dict]]:
     """
     Get the records, grouped by severity.
     """
     return {
         severity: [record for record in records if record["Severity"] == severity]
-        for severity in SARIF_SEVERITIES
+        for severity in severities
     }
 
 
@@ -139,9 +140,11 @@ class SarifRun:
                     filter_date = conversion_driver["properties"].get("processed", None)
                     self._filter.rehydrate_filter_stats(
                         dehydrated_filter_stats,
-                        datetime.datetime.fromisoformat(filter_date)
-                        if filter_date
-                        else None,
+                        (
+                            datetime.datetime.fromisoformat(filter_date)
+                            if filter_date
+                            else None
+                        ),
                     )
 
     def init_path_prefix_stripping(self, autotrim=False, path_prefixes=None):
@@ -245,11 +248,11 @@ class SarifRun:
             ]
         return self._cached_records
 
-    def get_records_grouped_by_severity(self) -> Dict[str, List[Dict]]:
+    def get_records_grouped_by_severity(self, severities=None) -> Dict[str, List[Dict]]:
         """
         Get the records, grouped by severity.
         """
-        return _group_records_by_severity(self.get_records())
+        return _group_records_by_severity(self.get_records(), severities or self.get_severities())
 
     def result_to_record(self, result, include_blame_info=False):
         """
@@ -285,6 +288,8 @@ class SarifRun:
         severity = result.get(
             "level", "warning"
         )  # If an error has no specified level then by default it is a warning
+        # TODO: improve this logic to match the rules in
+        # https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
 
         if "message" in result:
             # per RFC3629 At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629
@@ -311,9 +316,11 @@ class SarifRun:
             "Line": line_number,
             "Severity": severity,
             "Code": error_id,
-            "Description": message[len(error_id) + 1].strip()
-            if message.startswith(error_id) and len(message) > len(error_id) + 1
-            else message,
+            "Description": (
+                message[len(error_id) + 1].strip()
+                if message.startswith(error_id) and len(message) > len(error_id) + 1
+                else message
+            ),
         }
         if include_blame_info:
             record["Author"] = _get_author_mail_from_blame_info(
@@ -328,14 +335,15 @@ class SarifRun:
         """
         return len(self.get_results())
 
-    def get_result_count_by_severity(self) -> Dict[str, int]:
+    def get_result_count_by_severity(self, severities=None) -> Dict[str, int]:
         """
         Return a dict from SARIF severity to number of records.
         """
         records = self.get_records()
+        severities = severities or self.get_severities()
         return {
             severity: sum(1 for record in records if severity in record["Severity"])
-            for severity in SARIF_SEVERITIES
+            for severity in severities
         }
 
     def get_issue_code_histogram(self, severity) -> List[Tuple]:
@@ -372,6 +380,21 @@ class SarifRun:
             if self.has_blame_info()
             else BASIC_RECORD_ATTRIBUTES
         )
+
+    def any_none(self) -> bool:
+        """Are there any records with severity "none"?"""
+        return any(record.get("Severity", "warning") == "none" for record in self.get_records())
+
+    def get_severities(self, include_none=False) -> List[str]:
+        """
+        Get the severity list, with "none" omitted unless present or force-included.
+
+        Return ["error", "warning", "note", "none"] if include_none or if there
+        are any records with severity "none", otherwise ["error", "warning", "note".]
+        """
+        if include_none or self.any_none():
+            return SARIF_SEVERITIES_WITH_NONE
+        return _SARIF_SEVERITIES_WITHOUT_NONE
 
 
 class SarifFile:
@@ -490,11 +513,11 @@ class SarifFile:
             ret += run.get_records()
         return ret
 
-    def get_records_grouped_by_severity(self) -> Dict[str, List[Dict]]:
+    def get_records_grouped_by_severity(self, severities=None) -> Dict[str, List[Dict]]:
         """
         Get the records, grouped by severity.
         """
-        return _group_records_by_severity(self.get_records())
+        return _group_records_by_severity(self.get_records(), severities or self.get_severities())
 
     def get_result_count(self) -> int:
         """
@@ -502,18 +525,19 @@ class SarifFile:
         """
         return sum(run.get_result_count() for run in self.runs)
 
-    def get_result_count_by_severity(self) -> Dict[str, int]:
+    def get_result_count_by_severity(self, severities=None) -> Dict[str, int]:
         """
         Return a dict from SARIF severity to number of records.
         """
+        severities = severities or self.get_severities()
         result_count_by_severity_per_run = [
-            run.get_result_count_by_severity() for run in self.runs
+            run.get_result_count_by_severity(severities) for run in self.runs
         ]
         return {
             severity: sum(
                 rc.get(severity, 0) for rc in result_count_by_severity_per_run
             )
-            for severity in SARIF_SEVERITIES
+            for severity in severities
         }
 
     def get_issue_code_histogram(self, severity) -> List[Tuple]:
@@ -535,6 +559,21 @@ class SarifFile:
     def has_blame_info(self) -> bool:
         """Is there (any) blame info in this SARIF file?"""
         return any(run.has_blame_info() for run in self.runs)
+
+    def any_none(self) -> bool:
+        """Are there any records with severity "none"?"""
+        return any(run.any_none() for run in self.runs)
+
+    def get_severities(self, include_none=False) -> List[str]:
+        """
+        Get the severity list, with "none" omitted unless present or force-included.
+
+        Return ["error", "warning", "note", "none"] if include_none or if there
+        are any records with severity "none", otherwise ["error", "warning", "note".]
+        """
+        if include_none or self.any_none():
+            return SARIF_SEVERITIES_WITH_NONE
+        return _SARIF_SEVERITIES_WITHOUT_NONE
 
 
 class SarifFileSet:
@@ -683,11 +722,11 @@ class SarifFileSet:
             ret += input_file.get_records()
         return ret
 
-    def get_records_grouped_by_severity(self) -> Dict[str, List[Dict]]:
+    def get_records_grouped_by_severity(self, severities=None) -> Dict[str, List[Dict]]:
         """
         Get the records, grouped by severity.
         """
-        return _group_records_by_severity(self.get_records())
+        return _group_records_by_severity(self.get_records(), severities or self.get_severities())
 
     def get_result_count(self) -> int:
         """
@@ -697,18 +736,19 @@ class SarifFileSet:
             input_file.get_result_count() for input_file in self.files
         )
 
-    def get_result_count_by_severity(self) -> Dict[str, int]:
+    def get_result_count_by_severity(self, severities=None) -> Dict[str, int]:
         """
         Return a dict from SARIF severity to number of records.
         """
+        severities = severities or self.get_severities()
         result_counts_by_severity = []
         for subdir in self.subdirs:
-            result_counts_by_severity.append(subdir.get_result_count_by_severity())
+            result_counts_by_severity.append(subdir.get_result_count_by_severity(severities))
         for input_file in self.files:
-            result_counts_by_severity.append(input_file.get_result_count_by_severity())
+            result_counts_by_severity.append(input_file.get_result_count_by_severity(severities))
         return {
             severity: sum(rc.get(severity, 0) for rc in result_counts_by_severity)
-            for severity in SARIF_SEVERITIES
+            for severity in severities
         }
 
     def get_issue_code_histogram(self, severity) -> List[Tuple]:
@@ -732,3 +772,24 @@ class SarifFileSet:
     def has_blame_info(self) -> bool:
         """Is there (any) blame info in (any of) the SARIF files?"""
         return any(input_file.has_blame_info() for input_file in self.files)
+
+    def any_none(self) -> bool:
+        """Are there any records with severity "none"?"""
+        for subdir in self.subdirs:
+            if subdir.any_none():
+                return True
+        for input_file in self.files:
+            if input_file.any_none():
+                return True
+        return False
+
+    def get_severities(self, include_none=False) -> List[str]:
+        """
+        Get the severity list, with "none" omitted unless present or force-included.
+
+        Return ["error", "warning", "note", "none"] if include_none or if there
+        are any records with severity "none", otherwise ["error", "warning", "note".]
+        """
+        if include_none or self.any_none():
+            return SARIF_SEVERITIES_WITH_NONE
+        return _SARIF_SEVERITIES_WITHOUT_NONE

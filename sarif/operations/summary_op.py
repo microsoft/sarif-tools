@@ -60,7 +60,7 @@ def _generate_summary(input_files: SarifFileSet) -> List[str]:
     """
     ret = []
     result_count_by_severity = input_files.get_result_count_by_severity()
-    for severity in sarif_file.SARIF_SEVERITIES:
+    for severity in input_files.get_severities():
         issue_code_histogram = input_files.get_issue_code_histogram(severity)
         result_count = result_count_by_severity.get(severity, 0)
         ret.append(f"\n{severity}: {result_count}")

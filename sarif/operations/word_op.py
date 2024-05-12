@@ -60,15 +60,20 @@ def _generate_word_summary(sarif_data, output_file, image_file):
     # Create a new document
     document = docx.Document()
 
-    _add_heading_and_highlevel_info(document, sarif_data, output_file, image_file)
-    _dump_errors_summary_by_sev(document, sarif_data)
-    _dump_each_error_in_detail(document, sarif_data)
+    severities = sarif_data.get_severities()
+    _add_heading_and_highlevel_info(
+        document, sarif_data, severities, output_file, image_file
+    )
+    _dump_errors_summary_by_sev(document, sarif_data, severities)
+    _dump_each_error_in_detail(document, sarif_data, severities)
 
     # finally, save the document.
     document.save(output_file)
 
 
-def _add_heading_and_highlevel_info(document, sarif_data, output_file, image_path):
+def _add_heading_and_highlevel_info(
+    document, sarif_data, severities, output_file, image_path
+):
     tool_name = ", ".join(sarif_data.get_distinct_tool_names())
     heading = f"Sarif Summary: {tool_name}"
 
@@ -80,7 +85,7 @@ def _add_heading_and_highlevel_info(document, sarif_data, output_file, image_pat
     document.add_heading(heading, 0)
     document.add_paragraph(f"Document generated on: {datetime.now()}")
 
-    sevs = ", ".join(sarif_file.SARIF_SEVERITIES)
+    sevs = ", ".join(severities)
     document.add_paragraph(
         f"Total number of various severities ({sevs}): {sarif_data.get_result_count()}"
     )
@@ -97,14 +102,13 @@ def _add_heading_and_highlevel_info(document, sarif_data, output_file, image_pat
     document.add_page_break()
 
 
-def _dump_errors_summary_by_sev(document, sarif_data):
+def _dump_errors_summary_by_sev(document, sarif_data, severities):
     """
     For each severity level (in priority order): create a list of the errors of
     that severity, print out how many there are and then do some further analysis
     of which error codes are present.
     """
 
-    severities = sarif_file.SARIF_SEVERITIES
     sev_to_records = sarif_data.get_records_grouped_by_severity()
     for severity in severities:
         errors_of_severity = sev_to_records.get(severity, [])
@@ -129,13 +133,12 @@ def _dump_errors_summary_by_sev(document, sarif_data):
             document.add_paragraph("None", style="List Bullet")
 
 
-def _dump_each_error_in_detail(document, sarif_data):
+def _dump_each_error_in_detail(document, sarif_data, severities):
     """
     Write out the errors to a table so that a human can do further analysis.
     """
     document.add_page_break()
 
-    severities = sarif_file.SARIF_SEVERITIES
     sev_to_records = sarif_data.get_records_grouped_by_severity()
     for severity in severities:
         errors_of_severity = sev_to_records.get(severity, [])

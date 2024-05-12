@@ -56,9 +56,11 @@ def upgrade_filter_file(old_filter_file, output_file):
         exclude_patterns,
     ) = _load_blame_filter_file(old_filter_file)
     new_filter_definition = {
-        "description": filter_description
-        if filter_description
-        else f"Migrated from {os.path.basename(old_filter_file)}",
+        "description": (
+            filter_description
+            if filter_description
+            else f"Migrated from {os.path.basename(old_filter_file)}"
+        ),
         "configuration": {"default-include": True, "check-line-number": True},
     }
     if include_patterns:

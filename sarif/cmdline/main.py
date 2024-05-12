@@ -93,7 +93,7 @@ def _create_arg_parser():
         "--check",
         "-x",
         type=str,
-        choices=sarif_file.SARIF_SEVERITIES,
+        choices=sarif_file.SARIF_SEVERITIES_WITH_NONE,
         help="Exit with error code if there are any issues of the specified level "
         + "(or for diff, an increase in issues at that level).",
     )
@@ -236,7 +236,7 @@ def _check(input_files: sarif_file.SarifFileSet, check_level):
     ret = 0
     if check_level:
         counts = input_files.get_result_count_by_severity()
-        for severity in sarif_file.SARIF_SEVERITIES:
+        for severity in sarif_file.SARIF_SEVERITIES_WITH_NONE:
             ret += counts.get(severity, 0)
             if severity == check_level:
                 break

@@ -47,7 +47,7 @@ def _write_to_csv(file_or_files, output_file):
     Write out the errors to a CSV file so that a human can do further analysis.
     """
     list_of_errors = file_or_files.get_records()
-    severities = sarif_file.SARIF_SEVERITIES
+    severities = file_or_files.get_severities()
     # newline="" to avoid \r\r\n - see https://stackoverflow.com/a/3191811/316578
     with open(output_file, "w", encoding="utf-8", newline="") as file_out:
         writer = csv.DictWriter(
