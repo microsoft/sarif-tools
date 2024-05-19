@@ -59,7 +59,9 @@ def _generate_single_txt(input_file, output_file, date_val):
 
     issues_by_severity = input_file.get_records_grouped_by_severity()
     for severity, issues_of_severity in issues_by_severity.items():
-        issue_code_histogram = input_file.get_issue_code_histogram(severity)
+        issue_code_histogram = input_file.get_issue_code_and_description_histogram(
+            severity
+        )
 
         distinct_issue_codes = len(issue_code_histogram)
         total_distinct_issue_codes += distinct_issue_codes

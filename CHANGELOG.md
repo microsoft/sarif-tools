@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0](releases/tag/v2.1.0) - Unreleased
 
+### Added
+
+- Support "none" severity level.  It's only included in the output if present in the input.
+
 ### Fixed
 
 - #39 Truncate long summaries.
+- Multiple occurrences of a single issue are now sorted by location in the Word report.
+- Improved debug and version reporting for when multiple versions are installed.
 
 ### Compatibility
 

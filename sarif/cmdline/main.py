@@ -3,11 +3,10 @@ Program entry point for sarif-tools on the command line.
 """
 
 import argparse
-from importlib import metadata
 import os
 import sys
 
-from sarif import loader, sarif_file
+from sarif import loader, sarif_file, __version__ as SARIF_TOOLS_PACKAGE_VERSION
 from sarif.filter.general_filter import load_filter_file
 
 from sarif.operations import (
@@ -34,12 +33,17 @@ def main():
     args, unknown_args = ARG_PARSER.parse_known_args()
 
     if args.debug:
-        print(f"SARIF tools v{SARIF_TOOLS_PACKAGE_VERSION}")
+        _print_version()
         print(f"Running code from {__file__}")
         known_args_summary = ", ".join(
             f"{key}={getattr(args, key)}" for key in vars(args)
         )
         print(f"Known arguments: {known_args_summary}")
+        if args.version:
+            return 0
+    elif args.version:
+        _print_version()
+        return 0
 
     if unknown_args:
         if any(
@@ -65,7 +69,6 @@ def _create_arg_parser():
     for cmd, cmd_attributes in _COMMANDS.items():
         cmd_list += cmd.ljust(col_width) + cmd_attributes["desc"] + "\n"
     cmd_list += "Run `sarif <COMMAND> --help` for command-specific help."
-    package_version = _read_package_version()
     parser = argparse.ArgumentParser(
         prog="sarif",
         description="Process sets of SARIF files",
@@ -80,12 +83,7 @@ def _create_arg_parser():
         subparser[cmd].set_defaults(func=cmd_attributes["fn"])
 
     # Common options
-    parser.add_argument(
-        "--version",
-        "-v",
-        action="version",
-        version=f"sarif-tools version {package_version}",
-    )
+    parser.add_argument("--version", "-v", action="store_true")
     parser.add_argument(
         "--debug", action="store_true", help="Print information useful for debugging"
     )
@@ -182,7 +180,7 @@ def _create_arg_parser():
         )
     # Most commands take an arbitrary list of SARIF files or directories
     for cmd in _COMMANDS:
-        if cmd not in ["diff", "upgrade-filter", "usage"]:
+        if cmd not in ["diff", "upgrade-filter", "usage", "version"]:
             subparser[cmd].add_argument(
                 "files_or_dirs",
                 metavar="file_or_dir",
@@ -204,6 +202,12 @@ def _create_arg_parser():
         help="A new SARIF file or a directory containing the new SARIF files",
     )
 
+    subparser["summary"].add_argument(
+        "--code",
+        action="store_true",
+        help="Group by issue code, not issue code and description",
+    )
+
     subparser["trend"].add_argument(
         "--dateformat",
         "-f",
@@ -223,13 +227,6 @@ def _create_arg_parser():
     )
 
     return parser
-
-
-def _read_package_version():
-    try:
-        return metadata.version("sarif-tools")
-    except metadata.PackageNotFoundError:
-        return "local"
 
 
 def _check(input_files: sarif_file.SarifFileSet, check_level):
@@ -407,7 +404,7 @@ def _summary(args):
         (output, multiple_file_output) = _prepare_output(
             input_files, args.output, ".txt"
         )
-    summary_op.generate_summary(input_files, output, multiple_file_output)
+    summary_op.generate_summary(input_files, output, multiple_file_output, args.code)
     return _check(input_files, args.check)
 
 
@@ -456,6 +453,18 @@ def _usage(args):
         sys.stderr.write("Spurious --check argument")
         return 1
     return 0
+
+
+def _version(args):
+    _print_version(not args.version)
+
+
+def _print_version(bare=False):
+    print(
+        SARIF_TOOLS_PACKAGE_VERSION
+        if bare
+        else f"SARIF tools v{SARIF_TOOLS_PACKAGE_VERSION}"
+    )
 
 
 def _word(args):
@@ -516,11 +525,11 @@ _COMMANDS = {
         "desc": "Upgrade a sarif-tools v1-style blame filter file to a v2-style filter YAML file",
     },
     "usage": {"fn": _usage, "desc": "(Command optional) - print usage and exit"},
+    "version": {"fn": _version, "desc": "Print version and exit"},
     "word": {
         "fn": _word,
         "desc": "Produce MS Word .docx summaries of the SARIF files specified",
     },
 }
 
-SARIF_TOOLS_PACKAGE_VERSION = _read_package_version()
 ARG_PARSER = _create_arg_parser()

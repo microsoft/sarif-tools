@@ -130,16 +130,13 @@ def _generate_single_html(
 def _enrich_details(histogram, records_of_severity):
     enriched_details = []
 
-    for error_code_and_desc, count in histogram:
+    for error_code, count in histogram:
         error_lines_generator = (
-            e
-            for e in records_of_severity
-            if sarif_file.combine_code_and_description(e) == error_code_and_desc
+            e for e in records_of_severity if e["Code"] == error_code
         )
-        lines = sorted(
-            error_lines_generator, key=lambda x: x["Location"] + str(x["Line"]).zfill(6)
+        lines = sorted(error_lines_generator, key=sarif_file.record_sort_key)
+        heading = (
+            sarif_file.combine_code_and_description(lines[0]) if lines else error_code
         )
-        enriched_details.append(
-            {"code": error_code_and_desc, "count": count, "details": lines}
-        )
+        enriched_details.append({"code": heading, "count": count, "details": lines})
     return enriched_details

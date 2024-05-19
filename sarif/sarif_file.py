@@ -60,8 +60,7 @@ def _group_records_by_severity(records, severities) -> Dict[str, List[Dict]]:
 
 def _count_records_by_issue_code(records, severity) -> List[Tuple]:
     """
-    Return a list of pairs (code_and_desc, count) of the records with the specified
-    severities.
+    Return a list of pairs (code, count) of the records with the specified severities.
     """
     code_to_count = {}
     for record in records:
@@ -69,6 +68,19 @@ def _count_records_by_issue_code(records, severity) -> List[Tuple]:
             code = record["Code"].strip()
             code_to_count[code] = code_to_count.get(code, 0) + 1
     return sorted(code_to_count.items(), key=lambda x: x[1], reverse=True)
+
+
+def _count_records_by_issue_code_and_description(records, severity) -> List[Tuple]:
+    """
+    Return a list of pairs (code_and_desc, count) of the records with the specified
+    severities.
+    """
+    cd_to_count = {}
+    for record in records:
+        if record["Severity"] == severity:
+            cd = combine_code_and_description(record)
+            cd_to_count[cd] = cd_to_count.get(cd, 0) + 1
+    return sorted(cd_to_count.items(), key=lambda x: x[1], reverse=True)
 
 
 def get_record_headings(with_blame) -> List[str]:
@@ -110,6 +122,15 @@ def combine_code_and_description(record: dict) -> str:
     elif code:
         return code.strip()
     return "<NONE>"
+
+
+def record_sort_key(record: dict) -> str:
+    """Get a sort key for the record."""
+    return (
+        combine_code_and_description(record)
+        + record["Location"]
+        + str(record["Line"]).zfill(6)
+    )
 
 
 def _add_filter_stats(accumulator, filter_stats):
@@ -268,7 +289,9 @@ class SarifRun:
         """
         Get the records, grouped by severity.
         """
-        return _group_records_by_severity(self.get_records(), severities or self.get_severities())
+        return _group_records_by_severity(
+            self.get_records(), severities or self.get_severities()
+        )
 
     def result_to_record(self, result, include_blame_info=False):
         """
@@ -369,6 +392,15 @@ class SarifRun:
         """
         return _count_records_by_issue_code(self.get_records(), severity)
 
+    def get_issue_code_and_description_histogram(self, severity) -> List[Tuple]:
+        """
+        Return a list of pairs (code_and_description, count) of the records with the specified
+        severities.
+        """
+        return _count_records_by_issue_code_and_description(
+            self.get_records(), severity
+        )
+
     def get_filter_stats(self) -> Optional[FilterStats]:
         """
         Get the number of records that were included or excluded by the filter.
@@ -399,7 +431,9 @@ class SarifRun:
 
     def any_none(self) -> bool:
         """Are there any records with severity "none"?"""
-        return any(record.get("Severity", "warning") == "none" for record in self.get_records())
+        return any(
+            record.get("Severity", "warning") == "none" for record in self.get_records()
+        )
 
     def get_severities(self, include_none=False) -> List[str]:
         """
@@ -533,7 +567,9 @@ class SarifFile:
         """
         Get the records, grouped by severity.
         """
-        return _group_records_by_severity(self.get_records(), severities or self.get_severities())
+        return _group_records_by_severity(
+            self.get_records(), severities or self.get_severities()
+        )
 
     def get_result_count(self) -> int:
         """
@@ -562,6 +598,15 @@ class SarifFile:
         severities.
         """
         return _count_records_by_issue_code(self.get_records(), severity)
+
+    def get_issue_code_and_description_histogram(self, severity) -> List[Tuple]:
+        """
+        Return a list of pairs (code_and_description, count) of the records with the specified
+        severities.
+        """
+        return _count_records_by_issue_code_and_description(
+            self.get_records(), severity
+        )
 
     def get_filter_stats(self) -> Optional[FilterStats]:
         """
@@ -742,7 +787,9 @@ class SarifFileSet:
         """
         Get the records, grouped by severity.
         """
-        return _group_records_by_severity(self.get_records(), severities or self.get_severities())
+        return _group_records_by_severity(
+            self.get_records(), severities or self.get_severities()
+        )
 
     def get_result_count(self) -> int:
         """
@@ -759,9 +806,13 @@ class SarifFileSet:
         severities = severities or self.get_severities()
         result_counts_by_severity = []
         for subdir in self.subdirs:
-            result_counts_by_severity.append(subdir.get_result_count_by_severity(severities))
+            result_counts_by_severity.append(
+                subdir.get_result_count_by_severity(severities)
+            )
         for input_file in self.files:
-            result_counts_by_severity.append(input_file.get_result_count_by_severity(severities))
+            result_counts_by_severity.append(
+                input_file.get_result_count_by_severity(severities)
+            )
         return {
             severity: sum(rc.get(severity, 0) for rc in result_counts_by_severity)
             for severity in severities
@@ -773,6 +824,15 @@ class SarifFileSet:
         severities.
         """
         return _count_records_by_issue_code(self.get_records(), severity)
+
+    def get_issue_code_and_description_histogram(self, severity) -> List[Tuple]:
+        """
+        Return a list of pairs (code_and_description, count) of the records with the specified
+        severities.
+        """
+        return _count_records_by_issue_code_and_description(
+            self.get_records(), severity
+        )
 
     def get_filter_stats(self) -> Optional[FilterStats]:
         """

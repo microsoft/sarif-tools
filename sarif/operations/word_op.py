@@ -143,7 +143,7 @@ def _dump_each_error_in_detail(document, sarif_data, severities):
     for severity in severities:
         errors_of_severity = sev_to_records.get(severity, [])
         sorted_errors_by_severity = sorted(
-            errors_of_severity, key=sarif_file.combine_code_and_description
+            errors_of_severity, key=sarif_file.record_sort_key
         )
         # Sample:
         # [{'Location': 'C:\\Max\\AccessionAndroid\\scripts\\parse_coverage.py', 'Line': 119,
