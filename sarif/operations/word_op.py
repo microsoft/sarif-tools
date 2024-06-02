@@ -43,8 +43,10 @@ def generate_word_docs_from_sarif_inputs(
                 "to",
                 output_file_name,
             )
+            report = input_file.get_report()
             _generate_word_summary(
                 input_file,
+                report,
                 os.path.join(output, output_file_name),
                 image_file,
             )
@@ -53,26 +55,27 @@ def generate_word_docs_from_sarif_inputs(
 
     source_description = input_files.get_description()
     print("Writing Word summary of", source_description, "to", output_file_name)
-    _generate_word_summary(input_files, output_file, image_file)
+    report = input_files.get_report()
+    _generate_word_summary(input_files, report, output_file, image_file)
 
 
-def _generate_word_summary(sarif_data, output_file, image_file):
+def _generate_word_summary(sarif_data, report, output_file, image_file):
     # Create a new document
     document = docx.Document()
 
-    severities = sarif_data.get_severities()
+    severities = report.get_severities()
     _add_heading_and_highlevel_info(
-        document, sarif_data, severities, output_file, image_file
+        document, sarif_data, report, severities, output_file, image_file
     )
-    _dump_errors_summary_by_sev(document, sarif_data, severities)
-    _dump_each_error_in_detail(document, sarif_data, severities)
+    _dump_errors_summary_by_sev(document, report, severities)
+    _dump_each_error_in_detail(document, report, severities)
 
     # finally, save the document.
     document.save(output_file)
 
 
 def _add_heading_and_highlevel_info(
-    document, sarif_data, severities, output_file, image_path
+    document, sarif_data, report, severities, output_file, image_path
 ):
     tool_name = ", ".join(sarif_data.get_distinct_tool_names())
     heading = f"Sarif Summary: {tool_name}"
@@ -94,7 +97,7 @@ def _add_heading_and_highlevel_info(
         document.add_paragraph(f"Results were filtered by {filter_stats}.")
 
     pie_chart_image_file_path = output_file.replace(".docx", "_severity_pie_chart.png")
-    if charts.generate_severity_pie_chart(sarif_data, pie_chart_image_file_path):
+    if charts.generate_severity_pie_chart(report, pie_chart_image_file_path):
         document.add_picture(pie_chart_image_file_path)
     last_paragraph = document.paragraphs[-1]
     last_paragraph.alignment = text.WD_PARAGRAPH_ALIGNMENT.CENTER
@@ -102,30 +105,16 @@ def _add_heading_and_highlevel_info(
     document.add_page_break()
 
 
-def _dump_errors_summary_by_sev(document, sarif_data, severities):
+def _dump_errors_summary_by_sev(document, report, severities):
     """
     For each severity level (in priority order): create a list of the errors of
     that severity, print out how many there are and then do some further analysis
     of which error codes are present.
     """
-
-    sev_to_records = sarif_data.get_records_grouped_by_severity()
     for severity in severities:
-        errors_of_severity = sev_to_records.get(severity, [])
-        document.add_heading(
-            f"Severity : {severity} [ {len(errors_of_severity)} ]", level=1
-        )
-
-        # Go through the list of errors and create a dictionary of each error code
-        # present to how many times that error code occurs. Sort this dict and print
-        # out in descending order.
-        dict_of_error_codes = {}
-        for error in errors_of_severity:
-            issue_code = sarif_file.combine_code_and_description(error)
-            dict_of_error_codes[issue_code] = dict_of_error_codes.get(issue_code, 0) + 1
-        sorted_dict = sorted(
-            dict_of_error_codes.items(), key=lambda x: x[1], reverse=True
-        )
+        errors_of_severity = report.issue_type_count_for_severity(severity)
+        document.add_heading(f"Severity : {severity} [ {errors_of_severity} ]", level=1)
+        sorted_dict = report.get_issue_type_histogram(severity)
         if sorted_dict:
             for error in sorted_dict:
                 document.add_paragraph(f"{error[0]}: {error[1]}", style="List Bullet")
@@ -133,18 +122,14 @@ def _dump_errors_summary_by_sev(document, sarif_data, severities):
             document.add_paragraph("None", style="List Bullet")
 
 
-def _dump_each_error_in_detail(document, sarif_data, severities):
+def _dump_each_error_in_detail(document, report, severities):
     """
     Write out the errors to a table so that a human can do further analysis.
     """
     document.add_page_break()
 
-    sev_to_records = sarif_data.get_records_grouped_by_severity()
     for severity in severities:
-        errors_of_severity = sev_to_records.get(severity, [])
-        sorted_errors_by_severity = sorted(
-            errors_of_severity, key=sarif_file.record_sort_key
-        )
+        errors_of_severity = report.get_issues(severity)
         # Sample:
         # [{'Location': 'C:\\Max\\AccessionAndroid\\scripts\\parse_coverage.py', 'Line': 119,
         #       'Severity': 'error', 'Code': 'DS126186 Disabled certificate validation'},
@@ -182,7 +167,7 @@ def _dump_each_error_in_detail(document, sarif_data, severities):
                 ].alignment = text.WD_PARAGRAPH_ALIGNMENT.CENTER
                 hdr_cells[i].width = widths[i]
 
-            for eachrow in sorted_errors_by_severity:
+            for eachrow in errors_of_severity:
                 cells_text += [
                     sarif_file.combine_code_and_description(eachrow),
                     eachrow["Location"],

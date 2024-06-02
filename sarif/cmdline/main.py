@@ -75,7 +75,7 @@ def _create_arg_parser():
         epilog=cmd_list,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.set_defaults(func=_usage)
+    parser.set_defaults(func=_usage_command)
     subparsers = parser.add_subparsers(dest="command", help="command")
     subparser = {}
     for cmd, cmd_attributes in _COMMANDS.items():
@@ -202,12 +202,6 @@ def _create_arg_parser():
         help="A new SARIF file or a directory containing the new SARIF files",
     )
 
-    subparser["summary"].add_argument(
-        "--code",
-        action="store_true",
-        help="Group by issue code, not issue code and description",
-    )
-
     subparser["trend"].add_argument(
         "--dateformat",
         "-f",
@@ -309,7 +303,7 @@ def _prepare_output(
 ####################################### Command handlers #######################################
 
 
-def _blame(args):
+def _blame_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     (output, multiple_file_output) = _prepare_output(input_files, args.output, ".sarif")
     blame_op.enhance_with_blame(
@@ -318,7 +312,7 @@ def _blame(args):
     return _check(input_files, args.check)
 
 
-def _codeclimate(args):
+def _codeclimate_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=False)
@@ -328,7 +322,7 @@ def _codeclimate(args):
     return _check(input_files, args.check)
 
 
-def _copy(args):
+def _copy_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     _init_filtering(input_files, args)
     output = args.output or "out.sarif"
@@ -342,7 +336,7 @@ def _copy(args):
     return _check(output_sarif_file_set, args.check)
 
 
-def _csv(args):
+def _csv_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=False)
@@ -352,7 +346,7 @@ def _csv(args):
     return _check(input_files, args.check)
 
 
-def _diff(args):
+def _diff_command(args):
     original_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
     new_sarif = loader.load_sarif_files(args.new_file_or_dir[0])
     _init_filtering(original_sarif, args)
@@ -360,7 +354,7 @@ def _diff(args):
     return diff_op.print_diff(original_sarif, new_sarif, args.output, args.check)
 
 
-def _html(args):
+def _html_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
@@ -370,7 +364,7 @@ def _html(args):
     return _check(input_files, args.check)
 
 
-def _emacs(args):
+def _emacs_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
@@ -380,7 +374,7 @@ def _emacs(args):
     return _check(input_files, args.check)
 
 
-def _info(args):
+def _info_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     info_op.generate_info(input_files, args.output)
     if args.check:
@@ -388,7 +382,7 @@ def _info(args):
     return 0
 
 
-def _ls(args):
+def _ls_command(args):
     ls_op.print_ls(args.files_or_dirs, args.output)
     if args.check:
         input_files = loader.load_sarif_files(*args.files_or_dirs)
@@ -396,7 +390,7 @@ def _ls(args):
     return 0
 
 
-def _summary(args):
+def _summary_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     _init_filtering(input_files, args)
     (output, multiple_file_output) = (None, False)
@@ -404,11 +398,11 @@ def _summary(args):
         (output, multiple_file_output) = _prepare_output(
             input_files, args.output, ".txt"
         )
-    summary_op.generate_summary(input_files, output, multiple_file_output, args.code)
+    summary_op.generate_summary(input_files, output, multiple_file_output)
     return _check(input_files, args.check)
 
 
-def _trend(args):
+def _trend_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_filtering(input_files, args)
@@ -421,7 +415,7 @@ def _trend(args):
     return _check(input_files, args.check)
 
 
-def _upgrade_filter(args):
+def _upgrade_filter_command(args):
     old_filter_files = args.files_or_dirs
     single_output_file = None
     output_dir = None
@@ -442,7 +436,7 @@ def _upgrade_filter(args):
     return 0
 
 
-def _usage(args):
+def _usage_command(args):
     if hasattr(args, "output") and args.output:
         with open(args.output, "w", encoding="utf-8") as file_out:
             ARG_PARSER.print_help(file_out)
@@ -455,7 +449,7 @@ def _usage(args):
     return 0
 
 
-def _version(args):
+def _version_command(args):
     _print_version(not args.version)
 
 
@@ -467,7 +461,7 @@ def _print_version(bare=False):
     )
 
 
-def _word(args):
+def _word_command(args):
     input_files = loader.load_sarif_files(*args.files_or_dirs)
     input_files.init_default_line_number_1()
     _init_path_prefix_stripping(input_files, args, strip_by_default=True)
@@ -481,53 +475,62 @@ def _word(args):
 
 _COMMANDS = {
     "blame": {
-        "fn": _blame,
+        "fn": _blame_command,
         "desc": "Enhance SARIF file with information from `git blame`",
     },
     "codeclimate": {
-        "fn": _codeclimate,
+        "fn": _codeclimate_command,
         "desc": "Write a JSON representation in Code Climate format of SARIF file(s) "
         "for viewing as a Code Quality report in GitLab UI",
     },
     "copy": {
-        "fn": _copy,
+        "fn": _copy_command,
         "desc": "Write a new SARIF file containing optionally-filtered data from other SARIF file(s)",
     },
     "csv": {
-        "fn": _csv,
+        "fn": _csv_command,
         "desc": "Write a CSV file listing the issues from the SARIF files(s) specified",
     },
     "diff": {
-        "fn": _diff,
+        "fn": _diff_command,
         "desc": "Find the difference between two [sets of] SARIF files",
     },
     "emacs": {
-        "fn": _emacs,
+        "fn": _emacs_command,
         "desc": "Write a representation of SARIF file(s) for viewing in emacs",
     },
     "html": {
-        "fn": _html,
+        "fn": _html_command,
         "desc": "Write an HTML representation of SARIF file(s) for viewing in a web browser",
     },
-    "info": {"fn": _info, "desc": "Print information about SARIF file(s) structure"},
-    "ls": {"fn": _ls, "desc": "List all SARIF files in the directories specified"},
+    "info": {
+        "fn": _info_command,
+        "desc": "Print information about SARIF file(s) structure",
+    },
+    "ls": {
+        "fn": _ls_command,
+        "desc": "List all SARIF files in the directories specified",
+    },
     "summary": {
-        "fn": _summary,
+        "fn": _summary_command,
         "desc": "Write a text summary with the counts of issues from the SARIF files(s) specified",
     },
     "trend": {
-        "fn": _trend,
+        "fn": _trend_command,
         "desc": "Write a CSV file with time series data from SARIF files with "
         '"yyyymmddThhmmssZ" timestamps in their filenames',
     },
     "upgrade-filter": {
-        "fn": _upgrade_filter,
+        "fn": _upgrade_filter_command,
         "desc": "Upgrade a sarif-tools v1-style blame filter file to a v2-style filter YAML file",
     },
-    "usage": {"fn": _usage, "desc": "(Command optional) - print usage and exit"},
-    "version": {"fn": _version, "desc": "Print version and exit"},
+    "usage": {
+        "fn": _usage_command,
+        "desc": "(Command optional) - print usage and exit",
+    },
+    "version": {"fn": _version_command, "desc": "Print version and exit"},
     "word": {
-        "fn": _word,
+        "fn": _word_command,
         "desc": "Produce MS Word .docx summaries of the SARIF files specified",
     },
 }

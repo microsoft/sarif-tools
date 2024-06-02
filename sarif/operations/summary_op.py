@@ -9,7 +9,7 @@ from sarif.sarif_file import SarifFileSet
 
 
 def generate_summary(
-    input_files: SarifFileSet, output: str, output_multiple_files: bool, code_only: bool
+    input_files: SarifFileSet, output: str, output_multiple_files: bool
 ):
     """
     Generate a summary of the issues from the SARIF files.
@@ -24,7 +24,7 @@ def generate_summary(
                 input_file.get_file_name_without_extension() + "_summary.txt"
             )
             output_file = os.path.join(output, output_file_name)
-            summary_lines = _generate_summary(input_file, code_only)
+            summary_lines = _generate_summary(input_file)
             print(
                 "Writing summary of",
                 input_file.get_file_name(),
@@ -36,7 +36,7 @@ def generate_summary(
         output_file_name = "static_analysis_summary.txt"
         output_file = os.path.join(output, output_file_name)
 
-    summary_lines = _generate_summary(input_files, code_only)
+    summary_lines = _generate_summary(input_files)
     if output:
         print(
             "Writing summary of",
@@ -51,23 +51,19 @@ def generate_summary(
             print(lstr)
 
 
-def _generate_summary(input_files: SarifFileSet, code_only: bool) -> List[str]:
+def _generate_summary(input_files: SarifFileSet) -> List[str]:
     """
     For each severity level (in priority order): create a list of the errors of
     that severity, print out how many there are and then do some further analysis
     of which error codes are present.
     """
     ret = []
-    result_count_by_severity = input_files.get_result_count_by_severity()
-    for severity in input_files.get_severities():
-        issue_cd_histogram = (
-            input_files.get_issue_code_histogram(severity)
-            if code_only
-            else input_files.get_issue_code_and_description_histogram(severity)
-        )
-        result_count = result_count_by_severity.get(severity, 0)
+    report = input_files.get_report()
+    for severity in report.get_severities():
+        result_count = report.issue_count_for_severity(severity)
+        issue_type_histogram = report.get_issue_type_histogram(severity)
         ret.append(f"\n{severity}: {result_count}")
-        ret += [f" - {code}: {count}" for (code, count) in issue_cd_histogram]
+        ret += [f" - {key}: {count}" for (key, count) in issue_type_histogram.items()]
     filter_stats = input_files.get_filter_stats()
     if filter_stats:
         ret.append(f"\nResults were filtered by {filter_stats}")

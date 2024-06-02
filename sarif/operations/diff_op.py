@@ -7,6 +7,7 @@ import sys
 from typing import Dict
 
 from sarif import sarif_file
+from sarif.sarif_file_utils import combine_code_and_description
 
 
 def _occurrences(occurrence_count):
@@ -99,14 +100,12 @@ def print_diff(
 
 def _find_new_occurrences(new_records, old_records, issue_code_and_desc):
     old_occurrences = [
-        r
-        for r in old_records
-        if sarif_file.combine_code_and_description(r) == issue_code_and_desc
+        r for r in old_records if combine_code_and_description(r) == issue_code_and_desc
     ]
     new_occurrences_new_locations = []
     new_occurrences_new_lines = []
     for new_record in new_records:
-        if sarif_file.combine_code_and_description(new_record) == issue_code_and_desc:
+        if combine_code_and_description(new_record) == issue_code_and_desc:
             (new_location, new_line) = (True, True)
             for old_record in old_occurrences:
                 if old_record["Location"] == new_record["Location"]:

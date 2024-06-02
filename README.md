@@ -750,8 +750,8 @@ on the returned `SarifFile` or `SarifFileSet` objects to explore the data.
 from sarif import loader
 
 sarif_data = loader.load_sarif_file(path_to_sarif_file)
-issue_count_by_severity = sarif_data.get_result_count_by_severity()
-error_histogram = sarif_data.get_issue_code_and_description_histogram("error")
+report = sarif_data.get_report()
+error_histogram = report.get_issue_type_histogram("error")
 ```
 
 ### Result access API

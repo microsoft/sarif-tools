@@ -78,18 +78,18 @@ def _generate_single_html(
     input_file, output_file, date_val, image_mime_type, image_data_base64
 ):
     all_tools = input_file.get_distinct_tool_names()
+    report = input_file.get_report()
 
     total_distinct_issue_codes = 0
     problems = []
+    severities = report.get_severities()
 
-    issues_by_severity = input_file.get_records_grouped_by_severity()
-    for severity, issues_of_severity in issues_by_severity.items():
-        issue_code_histogram = input_file.get_issue_code_histogram(severity)
+    for severity in severities:
+        distinct_issue_codes = report.issue_type_count_for_severity(severity)
 
-        distinct_issue_codes = len(issue_code_histogram)
         total_distinct_issue_codes += distinct_issue_codes
 
-        severity_details = _enrich_details(issue_code_histogram, issues_of_severity)
+        severity_details = _enrich_details(report.get_issues_grouped_by_type(severity))
 
         severity_section = {
             "type": severity,
@@ -99,7 +99,7 @@ def _generate_single_html(
 
         problems.append(severity_section)
 
-    chart_data = charts.generate_severity_pie_chart(input_file, output_file=None)
+    chart_data = charts.generate_severity_pie_chart(report, output_file=None)
     if chart_data:
         chart_image_data_base64 = base64.b64encode(chart_data).decode("utf-8")
     else:
@@ -114,7 +114,7 @@ def _generate_single_html(
     html_content = template.render(
         report_type=", ".join(all_tools),
         report_date=date_val,
-        severities=", ".join(issues_by_severity.keys()),
+        severities=", ".join(severities),
         total=total_distinct_issue_codes,
         problems=problems,
         image_mime_type=image_mime_type,
@@ -127,16 +127,8 @@ def _generate_single_html(
         file_out.write(html_content)
 
 
-def _enrich_details(histogram, records_of_severity):
-    enriched_details = []
-
-    for error_code, count in histogram:
-        error_lines_generator = (
-            e for e in records_of_severity if e["Code"] == error_code
-        )
-        lines = sorted(error_lines_generator, key=sarif_file.record_sort_key)
-        heading = (
-            sarif_file.combine_code_and_description(lines[0]) if lines else error_code
-        )
-        enriched_details.append({"code": heading, "count": count, "details": lines})
-    return enriched_details
+def _enrich_details(records_of_severity):
+    return [
+        {"code": key, "count": len(records), "details": records}
+        for (key, records) in records_of_severity.items()
+    ]

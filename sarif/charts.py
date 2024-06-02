@@ -6,7 +6,7 @@ import io
 import matplotlib.pyplot as plt
 
 
-def generate_severity_pie_chart(sarif_data, output_file=None):
+def generate_severity_pie_chart(report, output_file=None):
     """
     Generate a pie chart from the breakdown of issues by severity.
     The slices are ordered and plotted counter-clockwise.  The return
@@ -18,7 +18,8 @@ def generate_severity_pie_chart(sarif_data, output_file=None):
     sizes = []
     labels = []
     explode = []
-    for severity, count in sarif_data.get_result_count_by_severity().items():
+    for severity in report.get_severities():
+        count = report.issue_count_for_severity(severity)
         if count > 0:
             sizes.append(count)
             labels.append(severity)
