@@ -14,22 +14,27 @@ SARIF_SEVERITIES_WITHOUT_NONE = ["error", "warning", "note"]
 SARIF_SEVERITIES_WITH_NONE = SARIF_SEVERITIES_WITHOUT_NONE + ["none"]
 
 
-def combine_code_and_description(record: dict) -> str:
+def combine_code_and_description(code: str, description: str) -> str:
     """
-    Combine code and description fields into one string.
+    Combine code and description into one string, keeping total length under 120 characters.
     """
-    (code, description) = (record["Code"], record["Description"])
+    length_budget = 120
+    if code:
+        code = code.strip()
+        length_budget -= len(code) + 1
+    # Allow extra space when truncating for continuation characters
+    length_budget_pre_continuation = length_budget - 20
     if description:
         if "\n" in description:
             description = description[: description.index("\n")]
         description = description.strip()
     if description:
-        if len(description) > 120:
+        if len(description) > length_budget:
             shorter_description = textwrap.shorten(
-                description, width=103, placeholder="..."
+                description, width=length_budget_pre_continuation, placeholder=" ..."
             )
             if len(shorter_description) < 40:
-                description = description[:100] + "..."
+                description = description[:length_budget_pre_continuation] + " ..."
             else:
                 description = shorter_description
         if code:
@@ -38,6 +43,13 @@ def combine_code_and_description(record: dict) -> str:
     if code:
         return code.strip()
     return "<NONE>"
+
+
+def combine_record_code_and_description(record: dict) -> str:
+    """
+    Combine code and description fields into one string.
+    """
+    return combine_code_and_description(record["Code"], record["Description"])
 
 
 def read_result_location(result) -> Tuple[str, str]:
@@ -78,7 +90,7 @@ def read_result_location(result) -> Tuple[str, str]:
 def record_sort_key(record: dict) -> str:
     """Get a sort key for the record."""
     return (
-        combine_code_and_description(record)
+        combine_record_code_and_description(record)
         + record["Location"]
         + str(record["Line"]).zfill(6)
     )

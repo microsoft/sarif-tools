@@ -340,7 +340,7 @@ class SarifRun:
         Get the severity list, with "none" omitted unless present or force-included.
 
         Return ["error", "warning", "note", "none"] if include_none or if there
-        are any records with severity "none", otherwise ["error", "warning", "note".]
+        are any records with severity "none", otherwise ["error", "warning", "note"].
         """
         if include_none or self.any_none():
             return SARIF_SEVERITIES_WITH_NONE
@@ -513,7 +513,7 @@ class SarifFile:
         Get the severity list, with "none" omitted unless present or force-included.
 
         Return ["error", "warning", "note", "none"] if include_none or if there
-        are any records with severity "none", otherwise ["error", "warning", "note".]
+        are any records with severity "none", otherwise ["error", "warning", "note"].
         """
         if include_none or self.any_none():
             return SARIF_SEVERITIES_WITH_NONE
@@ -711,7 +711,7 @@ class SarifFileSet:
         Get the severity list, with "none" omitted unless present or force-included.
 
         Return ["error", "warning", "note", "none"] if include_none or if there
-        are any records with severity "none", otherwise ["error", "warning", "note".]
+        are any records with severity "none", otherwise ["error", "warning", "note"].
         """
         if include_none or self.any_none():
             return SARIF_SEVERITIES_WITH_NONE

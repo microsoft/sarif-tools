@@ -7,7 +7,7 @@ import os
 
 from sarif import sarif_file
 from sarif.sarif_file import SarifFileSet
-from sarif.sarif_file_utils import combine_code_and_description
+from sarif.sarif_file_utils import combine_record_code_and_description
 
 
 def generate_csv(input_files: SarifFileSet, output: str, output_multiple_files: bool):
@@ -60,6 +60,6 @@ def _write_to_csv(file_or_files, output_file):
                 e for e in list_of_errors if e["Severity"] == severity
             ]
             sorted_errors_by_severity = sorted(
-                errors_of_severity, key=combine_code_and_description
+                errors_of_severity, key=combine_record_code_and_description
             )
             writer.writerows(error_dict for error_dict in sorted_errors_by_severity)

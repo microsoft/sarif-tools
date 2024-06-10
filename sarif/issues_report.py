@@ -10,6 +10,7 @@ from typing import Dict, List
 
 from sarif.sarif_file_utils import (
     combine_code_and_description,
+    combine_record_code_and_description,
     record_sort_key,
     SARIF_SEVERITIES_WITHOUT_NONE,
     SARIF_SEVERITIES_WITH_NONE,
@@ -30,6 +31,9 @@ class IssuesReport:
     def add_record(self, record: dict):
         """Append record to list for severity - no sorting."""
         self._sev_to_records.setdefault(record["Severity"], []).append(record)
+        if self._records_have_been_sorted:
+            self._sev_to_sorted_keys = None
+            self._records_have_been_sorted = False
 
     def _group_records_by_key(self):
         self._sev_to_sorted_keys = {}
@@ -38,8 +42,8 @@ class IssuesReport:
             code_to_key_and_count.clear()
             for record in issues:
                 code = record["Code"]
-                key = combine_code_and_description(record)
-                key_and_count = code_to_key_and_count.get(code, None)
+                key = combine_record_code_and_description(record)
+                key_and_count = code_to_key_and_count.get(code)
                 if key_and_count is None:
                     code_to_key_and_count[code] = {
                         "key": key,
@@ -55,8 +59,8 @@ class IssuesReport:
                             zip(common_desc_stem, desc)
                         ):
                             if char1 != char2:
-                                key_and_count["key"] = (
-                                    common_desc_stem[0:char_pos] + " …"
+                                key_and_count["key"] = combine_code_and_description(
+                                    code, common_desc_stem[0:char_pos] + " ..."
                                 )
                                 break
             sorted_codes = sorted(
@@ -99,8 +103,9 @@ class IssuesReport:
         """
         Get the list of relevant severity levels for these records.
 
-        The returned list always includes "error", "warning" and "note", but "none" is only
-        included at the end if there are any records with severity "none".
+        The returned list always includes "error", "warning" and "note", the standard SARIF severity
+        levels for code issues.  The unusual severity level "none" is only included at the end if
+        there are any records with severity "none".
         """
         return (
             SARIF_SEVERITIES_WITH_NONE

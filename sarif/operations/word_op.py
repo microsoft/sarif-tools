@@ -169,7 +169,7 @@ def _dump_each_error_in_detail(document, report, severities):
 
             for eachrow in errors_of_severity:
                 cells_text += [
-                    sarif_file.combine_code_and_description(eachrow),
+                    sarif_file.combine_record_code_and_description(eachrow),
                     eachrow["Location"],
                     str(eachrow["Line"]),
                 ]
