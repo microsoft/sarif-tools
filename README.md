@@ -751,7 +751,7 @@ from sarif import loader
 
 sarif_data = loader.load_sarif_file(path_to_sarif_file)
 report = sarif_data.get_report()
-error_histogram = report.get_issue_type_histogram("error")
+error_histogram = report.get_issue_type_histogram_for_severity("error")
 ```
 
 ### Result access API

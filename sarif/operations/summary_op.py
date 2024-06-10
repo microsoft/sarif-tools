@@ -60,8 +60,8 @@ def _generate_summary(input_files: SarifFileSet) -> List[str]:
     ret = []
     report = input_files.get_report()
     for severity in report.get_severities():
-        result_count = report.issue_count_for_severity(severity)
-        issue_type_histogram = report.get_issue_type_histogram(severity)
+        result_count = report.get_issue_count_for_severity(severity)
+        issue_type_histogram = report.get_issue_type_histogram_for_severity(severity)
         ret.append(f"\n{severity}: {result_count}")
         ret += [f" - {key}: {count}" for (key, count) in issue_type_histogram.items()]
     filter_stats = input_files.get_filter_stats()

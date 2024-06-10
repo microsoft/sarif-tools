@@ -60,11 +60,13 @@ def _generate_single_txt(input_file, output_file, date_val):
     severities = report.get_severities()
 
     for severity in severities:
-        distinct_issue_codes = report.issue_type_count_for_severity(severity)
+        distinct_issue_codes = report.get_issue_type_count_for_severity(severity)
 
         total_distinct_issue_codes += distinct_issue_codes
 
-        severity_details = _enrich_details(report.get_issues_grouped_by_type(severity))
+        severity_details = _enrich_details(
+            report.get_issues_grouped_by_type_for_severity(severity)
+        )
 
         severity_section = {
             "type": severity,

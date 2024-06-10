@@ -112,9 +112,9 @@ def _dump_errors_summary_by_sev(document, report, severities):
     of which error codes are present.
     """
     for severity in severities:
-        errors_of_severity = report.issue_type_count_for_severity(severity)
+        errors_of_severity = report.get_issue_type_count_for_severity(severity)
         document.add_heading(f"Severity : {severity} [ {errors_of_severity} ]", level=1)
-        sorted_dict = report.get_issue_type_histogram(severity)
+        sorted_dict = report.get_issue_type_histogram_for_severity(severity)
         if sorted_dict:
             for error in sorted_dict:
                 document.add_paragraph(f"{error[0]}: {error[1]}", style="List Bullet")
@@ -129,7 +129,7 @@ def _dump_each_error_in_detail(document, report, severities):
     document.add_page_break()
 
     for severity in severities:
-        errors_of_severity = report.get_issues(severity)
+        errors_of_severity = report.get_issues_for_severity(severity)
         # Sample:
         # [{'Location': 'C:\\Max\\AccessionAndroid\\scripts\\parse_coverage.py', 'Line': 119,
         #       'Severity': 'error', 'Code': 'DS126186 Disabled certificate validation'},

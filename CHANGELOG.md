@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Changed Python API to use new IssueReport type for issue grouping and sorting:
   - `SarifFileSet` now has a `get_report()` method
-  - `s.get_result_count_by_severity()` replaced by `s.get_report().get_issue_type_histogram(severity)`
-  - `s.get_result_count_by_severity()` replaced by `s.get_report().issue_count_for_severity(severity)`
-  - `s.get_records_grouped_by_severity()` replaced by `s.get_report().get_issues(severity)`
+  - `s.get_result_count_by_severity()` replaced by
+    `s.get_report().get_issue_type_histogram_for_severity(severity)`
+  - `s.get_result_count_by_severity()` replaced by
+    `s.get_report().get_issue_count_for_severity(severity)`
+  - `s.get_records_grouped_by_severity()` replaced by
+    `s.get_report().get_issues_for_severity(severity)`
 
 ### Added
 

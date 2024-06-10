@@ -85,11 +85,11 @@ class IssuesReport:
                 records.sort(key=record_sort_key)
         self._records_have_been_sorted = True
 
-    def issue_count_for_severity(self, severity: str) -> int:
+    def get_issue_count_for_severity(self, severity: str) -> int:
         """Get the number of individual records at this severity level."""
         return len(self._sev_to_records.get(severity, []))
 
-    def issue_type_count_for_severity(self, severity: str) -> int:
+    def get_issue_type_count_for_severity(self, severity: str) -> int:
         """Get the number of distinct issue types at this severity level."""
         if self._sev_to_sorted_keys is None:
             self._group_records_by_key()
@@ -113,7 +113,9 @@ class IssuesReport:
             else SARIF_SEVERITIES_WITHOUT_NONE
         )
 
-    def get_issues_grouped_by_type(self, severity: str) -> Dict[str, List[dict]]:
+    def get_issues_grouped_by_type_for_severity(
+        self, severity: str
+    ) -> Dict[str, List[dict]]:
         """
         Get a dict from issue type key to list of matching records at this severity level.
 
@@ -123,28 +125,32 @@ class IssuesReport:
             self._sort_record_lists()
         return self._sev_to_sorted_keys.get(severity, {})
 
-    def get_issue_type_histogram(self, severity: str) -> Dict[str, List[dict]]:
+    def get_issue_type_histogram_for_severity(
+        self, severity: str
+    ) -> Dict[str, List[dict]]:
         """
         Get a dict from issue type key to number of matching records at this severity level.
 
         This is the same as `{k: len(v) for k, v in d.items()}` where
-        `d = report.get_issues_grouped_by_type(severity)`.
+        `d = report.get_issues_grouped_by_type_for_severity(severity)`.
         """
         if self._sev_to_sorted_keys is None:
             self._group_records_by_key()
         return {
             key: len(records)
-            for key, records in self.get_issues_grouped_by_type(severity).items()
+            for key, records in self.get_issues_grouped_by_type_for_severity(
+                severity
+            ).items()
         }
 
-    def get_issues(self, severity: str) -> List[dict]:
+    def get_issues_for_severity(self, severity: str) -> List[dict]:
         """
         Get a flat list of the issues at this severity.
 
         The sorting is consistent with `get_issues_grouped_by_type`, but the issues are not grouped
         by type.
         """
-        type_to_issues = self.get_issues_grouped_by_type(severity)
+        type_to_issues = self.get_issues_grouped_by_type_for_severity(severity)
         ret = []
         for issues_for_type in type_to_issues.values():
             ret.extend(issues_for_type)

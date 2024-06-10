@@ -19,7 +19,7 @@ def generate_severity_pie_chart(report, output_file=None):
     labels = []
     explode = []
     for severity in report.get_severities():
-        count = report.issue_count_for_severity(severity)
+        count = report.get_issue_count_for_severity(severity)
         if count > 0:
             sizes.append(count)
             labels.append(severity)
