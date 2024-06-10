@@ -5,7 +5,6 @@ Code for `sarif summary` command.
 import os
 from typing import List
 
-from sarif import sarif_file
 from sarif.sarif_file import SarifFileSet
 
 
@@ -59,12 +58,12 @@ def _generate_summary(input_files: SarifFileSet) -> List[str]:
     of which error codes are present.
     """
     ret = []
-    result_count_by_severity = input_files.get_result_count_by_severity()
-    for severity in sarif_file.SARIF_SEVERITIES:
-        issue_code_histogram = input_files.get_issue_code_histogram(severity)
-        result_count = result_count_by_severity.get(severity, 0)
+    report = input_files.get_report()
+    for severity in report.get_severities():
+        result_count = report.get_issue_count_for_severity(severity)
+        issue_type_histogram = report.get_issue_type_histogram_for_severity(severity)
         ret.append(f"\n{severity}: {result_count}")
-        ret += [f" - {code}: {count}" for (code, count) in issue_code_histogram]
+        ret += [f" - {key}: {count}" for (key, count) in issue_type_histogram.items()]
     filter_stats = input_files.get_filter_stats()
     if filter_stats:
         ret.append(f"\nResults were filtered by {filter_stats}")

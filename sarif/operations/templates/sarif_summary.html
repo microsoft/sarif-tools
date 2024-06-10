@@ -106,9 +106,13 @@
         <button class="collapsible">{{- error.code }}: <b>{{ error.count -}}</b></button>
         <div class="content">
             <ul>
-                {% for line in error.details -%}
+                {%- for line in error.details -%}
+                  {%- if line.Location %}
                     <li>{{ line.Location }}:{{ line.Line }}</li>
-                {% endfor %}
+                  {%- else %}
+                    <li>{{ line.Description }}</li>
+                  {%- endif %}
+                {%- endfor %}
             </ul>
         </div>
     </li>

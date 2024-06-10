@@ -5,11 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0](releases/tag/v2.1.0) - Unreleased
+## [3.0.0](releases/tag/v3.0.0) - Unreleased
+
+### Breaking Changes
+
+- Changed Python API to use new IssueReport type for issue grouping and sorting:
+  - `SarifFileSet` now has a `get_report()` method
+  - `s.get_result_count_by_severity()` replaced by
+    `s.get_report().get_issue_type_histogram_for_severity(severity)`
+  - `s.get_result_count_by_severity()` replaced by
+    `s.get_report().get_issue_count_for_severity(severity)`
+  - `s.get_records_grouped_by_severity()` replaced by
+    `s.get_report().get_issues_for_severity(severity)`
+
+### Added
+
+- Support "none" severity level.  It's only included in the output if present in the input.
 
 ### Fixed
 
 - #39 Truncate long summaries.
+- Made issue sorting and grouping more consistent across the various reports.
+- Multiple occurrences of a single issue are now sorted by location in the Word report.
+- Improved debug and version reporting for when multiple versions are installed.
 
 ### Compatibility
 

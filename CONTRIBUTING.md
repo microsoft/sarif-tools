@@ -75,7 +75,7 @@ Run `poetry update` to bump package versions in the `poetry.lock` file.
 
 Change the `version =` line in `pyproject.toml` for the new semantic version for your change.
 
-To make sure you're paying attention, you need to change it in the test `test_version.py` as well.
+Change the version in `sarif/__init__.py` as well.
 
 ### Run unit tests
 

@@ -5,7 +5,51 @@ Primarily interrogating the `result` JSON defined at
 https://docs.oasis-open.org/sarif/sarif/v2.1.0/cs01/sarif-v2.1.0-cs01.html#_Toc16012594
 """
 
+import textwrap
 from typing import Tuple
+
+# SARIF severity levels as per
+# https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
+SARIF_SEVERITIES_WITHOUT_NONE = ["error", "warning", "note"]
+SARIF_SEVERITIES_WITH_NONE = SARIF_SEVERITIES_WITHOUT_NONE + ["none"]
+
+
+def combine_code_and_description(code: str, description: str) -> str:
+    """
+    Combine code and description into one string, keeping total length under 120 characters.
+    """
+    length_budget = 120
+    if code:
+        code = code.strip()
+        length_budget -= len(code) + 1
+    # Allow extra space when truncating for continuation characters
+    length_budget_pre_continuation = length_budget - 20
+    if description:
+        if "\n" in description:
+            description = description[: description.index("\n")]
+        description = description.strip()
+    if description:
+        if len(description) > length_budget:
+            shorter_description = textwrap.shorten(
+                description, width=length_budget_pre_continuation, placeholder=" ..."
+            )
+            if len(shorter_description) < 40:
+                description = description[:length_budget_pre_continuation] + " ..."
+            else:
+                description = shorter_description
+        if code:
+            return f"{code.strip()} {description}"
+        return description
+    if code:
+        return code.strip()
+    return "<NONE>"
+
+
+def combine_record_code_and_description(record: dict) -> str:
+    """
+    Combine code and description fields into one string.
+    """
+    return combine_code_and_description(record["Code"], record["Description"])
 
 
 def read_result_location(result) -> Tuple[str, str]:
@@ -41,3 +85,12 @@ def read_result_location(result) -> Tuple[str, str]:
                 # Finally, try the logical location written by SpotBugs for some errors
                 file_path = logical_locations[0].get("fullyQualifiedName", None)
     return (file_path, line_number)
+
+
+def record_sort_key(record: dict) -> str:
+    """Get a sort key for the record."""
+    return (
+        combine_record_code_and_description(record)
+        + record["Location"]
+        + str(record["Line"]).zfill(6)
+    )

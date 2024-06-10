@@ -587,6 +587,19 @@ optional arguments:
 
 Print usage and exit.
 
+#### version
+
+```plain
+usage: sarif version [-h]
+
+Print version and exit
+
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+Prints the version number of sarif-tools in a bare format.
+
 #### word
 
 ```plain
@@ -708,11 +721,13 @@ For commonly used properties the following shortcuts are defined:
 | suppression | suppressions[*].kind |
 
 For the property `uri` (e.g. in `locations[*].physicalLocation.artifactLocation.uri`) file name wildcard characters can be used as it represents a file location:
+
 - `?` - a single occurrence of any character in a directory or file name
 - `*` - zero or more occurrences of any character in a directory or file name
 - `**` - zero or more occurrences across multiple directory levels
 
 E.g.
+
 - `tests/Test???.js`
 - `src/js/*.js`
 - `src/js/**/*.js`
@@ -735,8 +750,8 @@ on the returned `SarifFile` or `SarifFileSet` objects to explore the data.
 from sarif import loader
 
 sarif_data = loader.load_sarif_file(path_to_sarif_file)
-issue_count_by_severity = sarif_data.get_result_count_by_severity()
-error_histogram = sarif_data.get_issue_code_histogram("error")
+report = sarif_data.get_report()
+error_histogram = report.get_issue_type_histogram_for_severity("error")
 ```
 
 ### Result access API
