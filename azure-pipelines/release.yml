@@ -33,10 +33,10 @@ extends:
           templateContext:
             outputs:
               - output: pipelineArtifact
-                targetPath: '$(Build.ArtifactStagingDirectory)/dist/*.whl'
+                targetPath: '$(Pipeline.Workspace)/dist/*.whl'
                 artifactName: $(ARTIFACT_NAME_WHEEL)
               - output: pipelineArtifact
-                targetPath: '$(Build.ArtifactStagingDirectory)/dist/*.tar.gz'
+                targetPath: '$(Pipeline.Workspace)/dist/*.tar.gz'
                 artifactName: $(ARTIFACT_NAME_TARBALL)
 
           variables:
