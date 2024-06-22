@@ -44,8 +44,12 @@ extends:
 
           steps:
             - template: azure-pipelines/templates/use_python.yml@self
+
             - script: pipx install poetry
+              displayName: "Install Poetry"
+
             - script: poetry build
+              displayName: "poetry build"
 
       # - stage: Create Release
       #   dependsOn:
