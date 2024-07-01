@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made issue sorting and grouping more consistent across the various reports.
 - Multiple occurrences of a single issue are now sorted by location in the Word report.
 - Improved debug and version reporting for when multiple versions are installed.
+- For the copy operation, "invocation" in the resulting sarif is changed to an object to match the spec.
 
 ### Compatibility
 
