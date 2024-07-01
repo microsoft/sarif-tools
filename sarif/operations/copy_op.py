@@ -60,7 +60,9 @@ def generate_sarif(
                         "properties": conversion_properties,
                     }
                 },
-                "invocation": cmdline,
+                "invocation": {
+                    "commandLine": cmdline,
+                },
             }
             results = input_run.get_results()
             filter_stats = input_run.get_filter_stats()
