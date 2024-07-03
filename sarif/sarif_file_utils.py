@@ -23,7 +23,9 @@ def combine_code_and_description(code: str, description: str) -> str:
         code = code.strip()
         length_budget -= len(code) + 1
     # Allow extra space when truncating for continuation characters
-    length_budget_pre_continuation = length_budget - 20
+    length_budget_pre_continuation = length_budget - 5
+    if length_budget_pre_continuation < 10:
+        return code
     if description:
         if "\n" in description:
             description = description[: description.index("\n")]
@@ -33,7 +35,7 @@ def combine_code_and_description(code: str, description: str) -> str:
             shorter_description = textwrap.shorten(
                 description, width=length_budget_pre_continuation, placeholder=" ..."
             )
-            if len(shorter_description) < 40:
+            if len(shorter_description) < length_budget_pre_continuation - 40:
                 description = description[:length_budget_pre_continuation] + " ..."
             else:
                 description = shorter_description
@@ -41,7 +43,7 @@ def combine_code_and_description(code: str, description: str) -> str:
             return f"{code.strip()} {description}"
         return description
     if code:
-        return code.strip()
+        return code
     return "<NONE>"
 
 
