@@ -21,10 +21,12 @@ def combine_code_and_description(code: str, description: str) -> str:
     length_budget = 120
     if code:
         code = code.strip()
-        length_budget -= len(code) + 1
+        length_budget -= len(code) + 1  # Allow issue code and space character
+    continuation_placeholder = " ..."
     # Allow extra space when truncating for continuation characters
-    length_budget_pre_continuation = length_budget - 5
+    length_budget_pre_continuation = length_budget - len(continuation_placeholder)
     if length_budget_pre_continuation < 10:
+        # Don't include description if it would be very short due to long code
         return code
     if description:
         if "\n" in description:
@@ -33,10 +35,16 @@ def combine_code_and_description(code: str, description: str) -> str:
     if description:
         if len(description) > length_budget:
             shorter_description = textwrap.shorten(
-                description, width=length_budget_pre_continuation, placeholder=" ..."
+                description,
+                width=length_budget_pre_continuation,
+                placeholder=continuation_placeholder,
             )
             if len(shorter_description) < length_budget_pre_continuation - 40:
-                description = description[:length_budget_pre_continuation] + " ..."
+                # Word wrap shortens the description significantly, so truncate mid-word instead
+                description = (
+                    description[:length_budget_pre_continuation]
+                    + continuation_placeholder
+                )
             else:
                 description = shorter_description
         if code:
