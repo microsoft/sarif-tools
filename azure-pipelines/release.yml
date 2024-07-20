@@ -86,6 +86,8 @@ extends:
         - job: CreateRelease
           steps:
             - script: |
+                git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                git config user.name "Azure Piplines"
                 git tag -a $(releaseVersionWithPrefix) -m "Release $(releaseVersionWithPrefix)" origin/main
                 git push origin $(releaseVersionWithPrefix)
               displayName: Create git tag
