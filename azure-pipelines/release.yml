@@ -77,7 +77,7 @@ extends:
                 Contents: sarif_tools-$(releaseVersion).tar.gz
                 TargetFolder: $(Build.ArtifactStagingDirectory)/tarball
 
-      - stage: Create Release
+      - stage: CreateRelease
         dependsOn:
           - Build
         variables:
