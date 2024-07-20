@@ -33,10 +33,12 @@ extends:
           templateContext:
             outputs:
               - output: pipelineArtifact
-                targetPath: $(Build.ArtifactStagingDirectory)/sarif_tools-$(releaseVersion)-py3-none-any.whl
+                targetPath: $(Build.ArtifactStagingDirectory)/wheel/sarif_tools-$(releaseVersion)-py3-none-any.whl
+                sbomBuildDropPath: $(Build.ArtifactStagingDirectory)/wheel
                 artifactName: $(ARTIFACT_NAME_WHEEL)
               - output: pipelineArtifact
-                targetPath: $(Build.ArtifactStagingDirectory)/sarif_tools-$(releaseVersion).tar.gz
+                targetPath: $(Build.ArtifactStagingDirectory)/tarball/sarif_tools-$(releaseVersion).tar.gz
+                sbomBuildDropPath: $(Build.ArtifactStagingDirectory)/tarball
                 artifactName: $(ARTIFACT_NAME_TARBALL)
 
           variables:
@@ -61,14 +63,18 @@ extends:
               displayName: List files
 
             - task: CopyFiles@2
-              displayName: Copy build output
+              displayName: Copy wheel
               inputs:
                 SourceFolder: dist
-                Contents: |
-                  sarif_tools-$(releaseVersion)-py3-none-any.whl
-                  sarif_tools-$(releaseVersion).tar.gz
-                TargetFolder: $(Build.ArtifactStagingDirectory)
+                Contents: sarif_tools-$(releaseVersion)-py3-none-any.whl
+                TargetFolder: $(Build.ArtifactStagingDirectory)/wheel
 
+            - task: CopyFiles@2
+              displayName: Copy tarball
+              inputs:
+                SourceFolder: dist
+                Contents: sarif_tools-$(releaseVersion).tar.gz
+                TargetFolder: $(Build.ArtifactStagingDirectory)/tarball
 
       # - stage: Create Release
       #   dependsOn:
