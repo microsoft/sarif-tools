@@ -13,7 +13,7 @@ resources:
     - repository: MicroBuildTemplate
       type: git
       name: 1ESPipelineTemplates/MicroBuildTemplate
-      ref: main
+      ref: refs/tags/release
 
 extends:
   template: azure-pipelines/MicroBuild.1ES.Official.yml@MicroBuildTemplate
@@ -86,7 +86,7 @@ extends:
         - job: CreateRelease
           steps:
             - script: |
-                git tag -a $(releaseVersionWithPrefix) -m "Release $(releaseVersionWithPrefix)"
+                git tag -a $(releaseVersionWithPrefix) -m "Release $(releaseVersionWithPrefix)" origin/main
                 git push origin $(releaseVersionWithPrefix)
               displayName: Create git tag
 
