@@ -33,10 +33,10 @@ extends:
           templateContext:
             outputs:
               - output: pipelineArtifact
-                targetPath: dist/*.whl
+                targetPath: $(Build.ArtifactStagingDirectory)/*.whl
                 artifactName: $(ARTIFACT_NAME_WHEEL)
               - output: pipelineArtifact
-                targetPath: dist/*.tar.gz
+                targetPath: $(Build.ArtifactStagingDirectory)/*.tar.gz
                 artifactName: $(ARTIFACT_NAME_TARBALL)
 
           variables:
@@ -51,8 +51,15 @@ extends:
             - script: poetry build
               displayName: poetry build
 
-            - script: ls -R
+            - script: pwd & ls -R
               displayName: List files
+
+            - task: CopyFiles@2
+              displayName: Copy build output
+              inputs:
+                SourceFolder: dist
+                Contents: "*"
+                TargetFolder: $(Build.ArtifactStagingDirectory)
 
 
       # - stage: Create Release
