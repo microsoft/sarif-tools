@@ -58,6 +58,7 @@ extends:
                 echo "releaseVersion: $releaseVersion"
                 echo "##vso[task.setvariable variable=releaseVersion]$releaseVersion"
               displayName: Get release version
+              name: getReleaseVersionStep
 
             - script: pwd & ls -R
               displayName: List files
@@ -76,23 +77,38 @@ extends:
                 Contents: sarif_tools-$(releaseVersion).tar.gz
                 TargetFolder: $(Build.ArtifactStagingDirectory)/tarball
 
-      # - stage: Create Release
-      #   dependsOn:
-      #     - Build
-      #   jobs:
-      #   - job: CreateRelease
+      - stage: Create Release
+        dependsOn:
+          - Build
+        variables:
+          releaseVersion: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersion'] ]
+        jobs:
+        - job: CreateRelease
+          steps:
+            - task: GitHubRelease@1 #https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/github-release-v1?view=azure-pipelines
+              displayName: Create GitHub Release
+              inputs:
+                gitHubConnection: GitHub-sarif-tools
+                repositoryName: microsoft/sarif-tools
+                action: create
+                target: $(releaseVersion)
+                isDraft: false
+                addChangeLog: false
+                tagSource: auto
+                title: $(customTagName)
+                assets: $(Pipeline.Workspace)/dist/*
 
-      #     steps:
-      #       - task: GitHubRelease@1 #https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/github-release-v1?view=azure-pipelines
-      #         displayName: 'Create GitHub Release'
-      #         inputs:
-      #           gitHubConnection: 'GitHub-sarif-tools'
-      #           repositoryName: 'microsoft/sarif-tools'
-      #           action: 'create'
-      #           target: '$(Build.SourceVersion)'
-      #           isDraft: false
-      #           addChangeLog: false
-      #           tagSource: 'auto'
-      #           title: '$(customTagName)'
-      #           assets: |
-      #             $(Pipeline.Workspace)/dist/*
+      - stage: WaitForValidation
+        dependsOn:
+          - Build
+        jobs:
+          - job: wait_for_validation
+            displayName: Wait for manual validation
+            pool: server
+            steps:
+              - task: ManualValidation@0
+                timeoutInMinutes: 1440 # task times out in 1 day
+                inputs:
+                  notifyUsers: 'erikd@microsoft.com'
+                  instructions: 'Please test the latest draft release and then publish it.'
+                  onTimeout: 'reject'
