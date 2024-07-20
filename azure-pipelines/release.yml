@@ -51,6 +51,10 @@ extends:
             - script: poetry build
               displayName: poetry build
 
+            - script: ls -R
+              displayName: List files
+
+
       # - stage: Create Release
       #   dependsOn:
       #     - Build
