@@ -33,10 +33,10 @@ extends:
           templateContext:
             outputs:
               - output: pipelineArtifact
-                targetPath: $(Build.ArtifactStagingDirectory)/*.whl
+                targetPath: $(Build.ArtifactStagingDirectory)/sarif_tools-$(releaseVersion)-py3-none-any.whl
                 artifactName: $(ARTIFACT_NAME_WHEEL)
               - output: pipelineArtifact
-                targetPath: $(Build.ArtifactStagingDirectory)/*.tar.gz
+                targetPath: $(Build.ArtifactStagingDirectory)/sarif_tools-$(releaseVersion).tar.gz
                 artifactName: $(ARTIFACT_NAME_TARBALL)
 
           variables:
@@ -51,6 +51,11 @@ extends:
             - script: poetry build
               displayName: poetry build
 
+            - powershell: |
+                $releaseVersion = & poetry version --short
+                echo "releaseVersion: $releaseVersion"
+                echo "##vso[task.setvariable variable=releaseVersion;isOutput=true]$releaseVersion"
+
             - script: pwd & ls -R
               displayName: List files
 
@@ -58,7 +63,9 @@ extends:
               displayName: Copy build output
               inputs:
                 SourceFolder: dist
-                Contents: "*"
+                Contents: |
+                  sarif_tools-$(releaseVersion)-py3-none-any.whl
+                  sarif_tools-$(releaseVersion).tar.gz
                 TargetFolder: $(Build.ArtifactStagingDirectory)
 
 
