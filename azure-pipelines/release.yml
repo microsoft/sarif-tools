@@ -89,7 +89,7 @@ extends:
               displayName: Create GitHub Release
               inputs:
                 gitHubConnection: GitHub-sarif-tools
-                repositoryName: microsoft/sarif-tools
+                repositoryName: debonte/sarif-tools
                 action: create
                 target: v$(releaseVersion)
                 isDraft: true
