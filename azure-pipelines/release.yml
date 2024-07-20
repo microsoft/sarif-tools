@@ -33,10 +33,10 @@ extends:
           templateContext:
             outputs:
               - output: pipelineArtifact
-                targetPath: '$(Pipeline.Workspace)/dist/*.whl'
+                targetPath: dist/*.whl
                 artifactName: $(ARTIFACT_NAME_WHEEL)
               - output: pipelineArtifact
-                targetPath: '$(Pipeline.Workspace)/dist/*.tar.gz'
+                targetPath: dist/*.tar.gz
                 artifactName: $(ARTIFACT_NAME_TARBALL)
 
           variables:
@@ -46,10 +46,10 @@ extends:
             - template: azure-pipelines/templates/use_python.yml@self
 
             - script: pipx install poetry
-              displayName: "Install Poetry"
+              displayName: Install Poetry
 
             - script: poetry build
-              displayName: "poetry build"
+              displayName: poetry build
 
       # - stage: Create Release
       #   dependsOn:
