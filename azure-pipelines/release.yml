@@ -1,5 +1,10 @@
 name: Release
 
+trigger:
+  branches:
+    include:
+      - refs/tags/*
+
 variables:
   TeamName: "sarif-tools"
   architecture: "x64"
@@ -50,18 +55,16 @@ extends:
             - script: pipx install poetry
               displayName: Install Poetry
 
-            - script: poetry build
+            - script: poetry build --no-interaction
               displayName: poetry build
 
             - powershell: |
                 $releaseVersion = & poetry version --short
                 echo "releaseVersion: $releaseVersion"
                 echo "##vso[task.setvariable variable=releaseVersion]$releaseVersion"
+                echo "##vso[task.setvariable variable=releaseVersionWithPrefix]v$releaseVersion"
               displayName: Get release version
               name: getReleaseVersionStep
-
-            - script: pwd & ls -R
-              displayName: List files
 
             - task: CopyFiles@2
               displayName: Copy wheel
@@ -81,17 +84,22 @@ extends:
         dependsOn:
           - Build
         variables:
-          releaseVersion: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersion'] ]
+          releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
         jobs:
         - job: CreateRelease
           steps:
+            - script: |
+                git tag -a $(releaseVersionWithPrefix) -m "Release $(releaseVersionWithPrefix)"
+                git push origin $(releaseVersionWithPrefix)
+              displayName: Create git tag
+
             - task: GitHubRelease@1 #https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/github-release-v1?view=azure-pipelines
               displayName: Create GitHub Release
               inputs:
                 gitHubConnection: GitHub-sarif-tools
-                repositoryName: debonte/sarif-tools
+                repositoryName: microsoft/sarif-tools
                 action: create
-                target: v$(releaseVersion)
+                target: $(releaseVersionWithPrefix)
                 isDraft: true
                 addChangeLog: false
                 tagSource: auto
