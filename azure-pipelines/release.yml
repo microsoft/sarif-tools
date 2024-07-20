@@ -100,7 +100,7 @@ extends:
 
       - stage: WaitForValidation
         dependsOn:
-          - Build
+          - CreateRelease
         jobs:
           - job: wait_for_validation
             displayName: Wait for manual validation
