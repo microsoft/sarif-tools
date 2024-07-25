@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import urllib.request
 
 from sarif.sarif_file import SarifFileSet
 
@@ -94,10 +95,16 @@ def _enhance_with_blame(input_files, repo_path):
     print(f"Found blame information for {blame_info_count} of {item_count} results")
 
 
+def _make_path_git_compatible(file_path):
+    if file_path.startswith("file://"):
+        return urllib.request.url2pathname(file_path[7:])
+    return file_path
+
+
 def _run_git_blame_on_files(files_to_blame, repo_path):
     file_blame_info = {}
     for file_path in files_to_blame:
-        cmd = ["git", "blame", "--porcelain", file_path]
+        cmd = ["git", "blame", "--porcelain", _make_path_git_compatible(file_path)]
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=repo_path) as proc:
             blame_info = {"commits": {}, "line_to_commit": {}}
             file_blame_info[file_path] = blame_info
