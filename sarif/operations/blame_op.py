@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 
 from sarif.sarif_file import SarifFileSet
@@ -96,9 +97,13 @@ def _enhance_with_blame(input_files, repo_path):
 
 
 def _make_path_git_compatible(file_path):
-    if file_path.startswith("file://"):
-        return urllib.request.url2pathname(file_path[7:])
-    return file_path
+    try:
+        path_as_url = urllib.parse.urlparse(file_path)
+        if path_as_url.scheme == "file":
+            return urllib.request.url2pathname(path_as_url.path)
+        return file_path
+    except ValueError:
+        return file_path
 
 
 def _run_git_blame_on_files(files_to_blame, repo_path):
@@ -138,6 +143,7 @@ def _run_git_blame_on_files(files_to_blame, repo_path):
             if proc.returncode:
                 cmd_str = " ".join(cmd)
                 sys.stderr.write(
-                    f"WARNING: Command `{cmd_str}` failed with exit code {proc.returncode} in {repo_path}\n"
+                    f"WARNING: Command `{cmd_str} "
+                    f"failed with exit code {proc.returncode} in {repo_path}\n"
                 )
     return file_blame_info
