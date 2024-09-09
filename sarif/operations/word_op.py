@@ -18,6 +18,7 @@ from docx.enum import text
 from docx.oxml import ns
 
 from sarif import charts, sarif_file
+from sarif.sarif_file_utils import combine_record_code_and_description
 
 
 def generate_word_docs_from_sarif_inputs(
@@ -116,8 +117,8 @@ def _dump_errors_summary_by_sev(document, report, severities):
         document.add_heading(f"Severity : {severity} [ {errors_of_severity} ]", level=1)
         sorted_dict = report.get_issue_type_histogram_for_severity(severity)
         if sorted_dict:
-            for error in sorted_dict:
-                document.add_paragraph(f"{error[0]}: {error[1]}", style="List Bullet")
+            for key, count in sorted_dict.items():
+                document.add_paragraph(f"{key}: {count}", style="List Bullet")
         else:
             document.add_paragraph("None", style="List Bullet")
 
@@ -169,7 +170,7 @@ def _dump_each_error_in_detail(document, report, severities):
 
             for eachrow in errors_of_severity:
                 cells_text += [
-                    sarif_file.combine_record_code_and_description(eachrow),
+                    combine_record_code_and_description(eachrow),
                     eachrow["Location"],
                     str(eachrow["Line"]),
                 ]

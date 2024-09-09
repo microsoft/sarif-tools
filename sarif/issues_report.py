@@ -125,9 +125,7 @@ class IssuesReport:
             self._sort_record_lists()
         return self._sev_to_sorted_keys.get(severity, {})
 
-    def get_issue_type_histogram_for_severity(
-        self, severity: str
-    ) -> Dict[str, List[dict]]:
+    def get_issue_type_histogram_for_severity(self, severity: str) -> Dict[str, int]:
         """
         Get a dict from issue type key to number of matching records at this severity level.
 
