@@ -31,6 +31,9 @@ def combine_code_and_description(code: str, description: str) -> str:
     if description:
         if "\n" in description:
             description = description[: description.index("\n")]
+        if description.startswith(code):
+            # Don't duplicate the code
+            description = description[len(code) :]
         description = description.strip()
     if description:
         if len(description) > length_budget:
