@@ -799,7 +799,7 @@ There are three levels of normalisation and aggregation of the results from the 
    `sarif_file.BASIC_RECORD_ATTRIBUTES`:
     - `"Tool"` - the tool name for the run containing the result.
     - `"Severity"` - the SARIF severity for the record.  One of `error`, `warning` (the default if the
-      record doesn't specify) or `note`.
+      record doesn't specify), `note` or `none`.
     - `"Code"` - the issue code from the result.
     - `"Description"` - the issue name from the result - corresponding to the Code.
     - `"Location"` - the location of the issue, typically the file containing the issue.  Format varies
@@ -823,6 +823,9 @@ A `SarifRun` has a single tool name so the equivalent method is `get_tool_name()
   - Return the list of SARIF result objects as dicts - see above.
 - `get_records()`
   - Return the list of SARIF records as flat dicts - see above.
+- `get_report()`
+  - Return the `IssuesReport` object that groups the records by issue type and sorts them by
+    location.
 
 ### Key methods on `IssuesReport`
 
@@ -844,9 +847,10 @@ The key methods on the `IssuesReport` are:
   report, get the list of severities and then iterate through them calling other methods to get the
   summary of results at that severity level in the required form.
 - `any_none_severities()`: `True` or `False` that there are any records with severity `none`.
-  This is not used by many tools, so it is only included as a heading if there are any matching
-  records, to avoid a redundant `none` header otherwise.  Severities `error`, `warning` and `note`
-  are always included even if no records, as these levels are all relevant for issues.
+  Severity `none` is not used by many tools, so it is only included as a heading if there are any
+  matching records, to avoid a redundant and potentially-confusing `none` header otherwise.
+  Severities `error`, `warning` and `note` are always included even if no records, as these levels
+  are all relevant for static analysis issues.
 - `get_issue_count_for_severity(severity)`: Get the total number of results at this severity.
 - `get_issue_type_count_for_severity(severity)`:  Get the total number of issue types at this severity.
 - `get_issues_grouped_by_type_for_severity(severity)`: Get a dict from issue type key (code + description)

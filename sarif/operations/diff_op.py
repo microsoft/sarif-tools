@@ -24,7 +24,7 @@ def _record_to_location_tuple(record) -> str:
 
 
 def print_diff(
-    original_sarif: sarif_file.SarifFileSet,
+    old_sarif: sarif_file.SarifFileSet,
     new_sarif: sarif_file.SarifFileSet,
     output,
     check_level=None,
@@ -32,11 +32,11 @@ def print_diff(
     """
     Generate a diff of the issues from the SARIF files and write it to stdout
     or a file if specified.
-    :param original_sarif: corresponds to the old files.
+    :param old_sarif: corresponds to the old files.
     :param new_sarif: corresponds to the new files.
-    :return: number of increased severities, or 0 if nothing has got worse.
+    :return: number of increased severities, or 0 if nothing has worsened.
     """
-    diff = _calc_diff(original_sarif, new_sarif)
+    diff = _calc_diff(old_sarif, new_sarif)
     if output:
         print("writing diff to", output)
         with open(output, "w", encoding="utf-8") as output_file:
@@ -81,7 +81,7 @@ def print_diff(
             _signed_change(diff["all"]["+"]),
             _signed_change(-diff["all"]["-"]),
         )
-    filter_stats = original_sarif.get_filter_stats()
+    filter_stats = old_sarif.get_filter_stats()
     if filter_stats:
         print(f"  'Before' results were filtered by {filter_stats}")
     filter_stats = new_sarif.get_filter_stats()
@@ -101,6 +101,8 @@ def print_diff(
 
 
 def _find_new_occurrences(new_records, old_records):
+    # Note: this is O(n²) complexity where n is the number of occurrences of this issue type,
+    # so could be slow when there are a large number of occurrences.
     old_occurrences = old_records
     new_occurrences_new_locations = []
     new_occurrences_new_lines = []
@@ -125,29 +127,31 @@ def _find_new_occurrences(new_records, old_records):
 
 
 def _calc_diff(
-    original_sarif: sarif_file.SarifFileSet, new_sarif: sarif_file.SarifFileSet
+    old_sarif: sarif_file.SarifFileSet, new_sarif: sarif_file.SarifFileSet
 ) -> Dict:
     """
     Generate a diff of the issues from the SARIF files.
-    original_sarif corresponds to the old files.
+    old_sarif corresponds to the old files.
     new_sarif corresponds to the new files.
     Return dict has keys "error", "warning", "note", "none" (if present) and "all".
     """
     ret = {"all": {"+": 0, "-": 0}}
-    old_report = original_sarif.get_report()
+    old_report = old_sarif.get_report()
     new_report = new_sarif.get_report()
+    # Include `none` in the list of severities if there are any `none` records in either the old
+    # or new report.
     severities = (
         old_report.get_severities()
         if old_report.any_none_severities()
         else new_report.get_severities()
     )
     for severity in severities:
-        original_histogram = old_report.get_issue_type_histogram_for_severity(severity)
+        old_histogram = old_report.get_issue_type_histogram_for_severity(severity)
         new_histogram = new_report.get_issue_type_histogram_for_severity(severity)
         ret[severity] = {"+": 0, "-": 0, "codes": {}}
-        if original_histogram != new_histogram:
+        if old_histogram != new_histogram:
             for issue_key, count in new_histogram.items():
-                old_count = original_histogram.pop(issue_key, 0)
+                old_count = old_histogram.pop(issue_key, 0)
                 if old_count != count:
                     ret[severity]["codes"][issue_key] = {"<": old_count, ">": count}
                     if old_count == 0:
@@ -165,7 +169,7 @@ def _calc_diff(
                             {"Location": r["Location"], "Line": r["Line"]}
                             for r in new_occurrences
                         ]
-            for issue_key, old_count in original_histogram.items():
+            for issue_key, old_count in old_histogram.items():
                 ret[severity]["codes"][issue_key] = {"<": old_count, ">": 0}
                 ret[severity]["-"] += 1
         ret["all"]["+"] += ret[severity]["+"]
