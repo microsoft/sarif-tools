@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sarif-tools"
-version = "3.0.0"
+version = "3.0.1"
 description = "SARIF tools"
 authors = ["Microsoft"]
 readme = "README.md"
