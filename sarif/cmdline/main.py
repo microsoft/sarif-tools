@@ -347,11 +347,11 @@ def _csv_command(args):
 
 
 def _diff_command(args):
-    original_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
+    old_sarif = loader.load_sarif_files(args.old_file_or_dir[0])
     new_sarif = loader.load_sarif_files(args.new_file_or_dir[0])
-    _init_filtering(original_sarif, args)
+    _init_filtering(old_sarif, args)
     _init_filtering(new_sarif, args)
-    return diff_op.print_diff(original_sarif, new_sarif, args.output, args.check)
+    return diff_op.print_diff(old_sarif, new_sarif, args.output, args.check)
 
 
 def _html_command(args):

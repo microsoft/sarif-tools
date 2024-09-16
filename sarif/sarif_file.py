@@ -549,10 +549,8 @@ class SarifFileSet:
         Iterate the SARIF files in this set.
         """
         for subdir in self.subdirs:
-            for input_file in subdir.files:
-                yield input_file
-        for input_file in self.files:
-            yield input_file
+            yield from subdir.files
+        yield from self.files
 
     def __getitem__(self, index) -> SarifFile:
         i = 0

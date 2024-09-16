@@ -65,7 +65,8 @@ class IssuesReport:
                                 break
             sorted_codes = sorted(
                 code_to_key_and_count.keys(),
-                key=lambda code: -code_to_key_and_count[code]["count"],
+                key=lambda code: code_to_key_and_count[code]["count"],
+                reverse=True,
             )
             self._sev_to_sorted_keys[severity] = {
                 code_to_key_and_count[code]["key"]: [] for code in sorted_codes

@@ -81,6 +81,32 @@ installations, or the `python` installation on the super-user's `PATH` is differ
 in normal CMD and Admin CMD to see which installations are in use; on Linux, it's `which python` and
 `which pip` with and without `sudo`.
 
+## File format variations
+
+SARIF is a standard format for the output of static analysis tools, but as always, different tools
+use the standard in different ways.  The key parts of the spec that the SARIF Tools look at are:
+
+- Severity: Only `error`, `warning`, `note` and `none` are allowed by the SARIF standard.
+- Code and message: Issue types should have a short code and a short name, called "message" in the
+  standard and usually called "description" in Sarif-Tools.
+- Location: A specific location where the issue occurred, normally a file path and a line number.
+
+Static analysis tools often have different ideas from the SARIF standard about how to represent
+these pieces of data, and tool authors make different levels of effort to map their output to the
+SARIF standard.  Examples we have seen are:
+
+- Only using one SARIF severity level, and putting the "real" severity level into a custom property.
+- Including the location information in the message, so that the same issue in different locations
+  has a different message.
+- Representing the location in different ways.
+
+The Sarif-Tools code applies some minor fudging to produce decent results for mildly-divergent
+tools.  For example, issue types are identified by a combination of code and truncated message,
+either of which is allowed to be absent.  However, if Sarif-Tools is producing bad results for a
+specific tool, you may need to implement custom pre-processing of the SARIF output, or ask the
+tool authors to improve the quality of their tool's SARIF output to better align to the standard,
+or [raise an issue against Sarif-Tools](https://github.com/microsoft/sarif-tools/issues).
+
 ## Command Line Usage
 
 ```plain
@@ -754,54 +780,86 @@ report = sarif_data.get_report()
 error_histogram = report.get_issue_type_histogram_for_severity("error")
 ```
 
-### Result access API
+### Files and file sets
 
 The three classes defined in the `sarif_files` module, `SarifFileSet`, `SarifFile` and `SarifRun`,
 provide similar APIs, which allows SARIF results to be handled similarly at multiple levels of
-aggregation.  This section briefly describes some of the key APIs at the three levels of
-aggregation.
+aggregation.  To explore the results, use `get_report()`.
 
-#### get_distinct_tool_names()
+### Results, records and reports
 
-Returns a list of distinct tool names in a `SarifFile` or for all files in a `SarifFileSet`.
+There are three levels of normalisation and aggregation of the results from the SARIF files:
+
+1. Results, obtained from the `SarifFileSet`, `SarifFile` or `SarifRun` via the `get_results()`
+   method.  These are dicts directly deserialised from the JSON Result objects in the SARIF data,
+   as defined in the
+   [SARIF standard section 3.27](https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638).
+2. Records, obtained from the `SarifFileSet`, `SarifFile` or `SarifRun` via the `get_records()`
+   method.  Each record is a flat dict of key-value pairs where the keys are those in
+   `sarif_file.BASIC_RECORD_ATTRIBUTES`:
+    - `"Tool"` - the tool name for the run containing the result.
+    - `"Severity"` - the SARIF severity for the record.  One of `error`, `warning` (the default if the
+      record doesn't specify), `note` or `none`.
+    - `"Code"` - the issue code from the result.
+    - `"Description"` - the issue name from the result - corresponding to the Code.
+    - `"Location"` - the location of the issue, typically the file containing the issue.  Format varies
+      by tool.
+    - `"Line"` - the line number in the file where the issue occurs.  Value is a string.  This defaults
+      to `"1"` if the tool failed to identify the line.
+   This flat list of records is useful for machine-readable output formats like CSV.
+3. Reports are `IssuesReport` objects, as defined in the `issues_report.py`.  Reports group and
+   sort records to provide a useful structure for human-readable output formats like Word and HTML.
+   The report can be obtained from the `SarifFileSet`, `SarifFile` or `SarifRun` via the
+   `get_report()` method.
+
+### Key methods on Files and file sets
+
+These methods exist across `SarifFileSet`, `SarifFile` and `SarifRun`.
+
+- `get_distinct_tool_names()`
+  - Returns a list of distinct tool names in a `SarifFile` or for all files in a `SarifFileSet`.
 A `SarifRun` has a single tool name so the equivalent method is `get_tool_name()`.
+- `get_results()`
+  - Return the list of SARIF result objects as dicts - see above.
+- `get_records()`
+  - Return the list of SARIF records as flat dicts - see above.
+- `get_report()`
+  - Return the `IssuesReport` object that groups the records by issue type and sorts them by
+    location.
 
-#### get_results()
+### Key methods on `IssuesReport`
 
-Return the list of SARIF results.  These are objects as defined in the
-[SARIF standard section 3.27](https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638).
+The `IssuesReport` provides methods that group issues in three levels:
 
-#### get_records()
+1. Severity: SARIF defines severity levels `error`, `warning` and `note`, plus `none` which is
+   sometimes used when the results in the SARIF file are not issues.
+2. Issue Type: SARIF Results are identified by code, description or a combination of the two.
+   The same issue can occur in multiple locations, so the `IssuesReport` groups these together
+   per issue type, within a given severity level.  The issue type code key is formed by combining
+   the issue code and issue description, with a space character inserted in-between, but truncated
+   to be shorter than 120 characters.
+3. Record: The individual records under an issue type represent the locations where that issue
+   occurs.  They are sorted into a sensible location order.
 
-Return the list of SARIF results as simplified, flattened record dicts.  Each record has the
-attributes defined in `sarif_file.RECORD_ATTRIBUTES`.
+The key methods on the `IssuesReport` are:
 
-- `"Tool"` - the tool name for the run containing the result.
-- `"Severity"` - the SARIF severity for the record.  One of `error`, `warning` (the default if the
-  record doesn't specify) or `note`.
-- `"Code"` - the issue code from the result.
-- `"Description"` - the issue name from the result - corresponding to the Code.
-- `"Location"` - the location of the issue, typically the file containing the issue.  Format varies
-  by tool.
-- `"Line"` - the line number in the file where the issue occurs.  Value is a string.  This defaults
-  to `"1"` if the tool failed to identify the line.
-
-#### get_records_grouped_by_severity()
-
-As per `get_records()`, but the result is a dict from SARIF severity level (`error`, `warning` and
-`note`) to the list of records of that severity level.
-
-#### get_result_count(), get_result_count_by_severity()
-
-Get the total number of SARIF results.  `get_result_count_by_severity()` returns a dict from
-SARIF severity level (`error`, `warning` and `note`) to the integer number of results of that
-severity.
-
-#### get_issue_code_histogram(severity)
-
-For the given severity, get histogram in the form of a list of pairs.  The first item in each pair
-is the issue code, the second item is the number of matching records, and the list is sorted in
-decreasing order of frequency (the same as the `sarif summary` command output).
+- `get_severities()`: Get the ordered list of severities, from worst to least bad.  To render a
+  report, get the list of severities and then iterate through them calling other methods to get the
+  summary of results at that severity level in the required form.
+- `any_none_severities()`: `True` or `False` that there are any records with severity `none`.
+  Severity `none` is not used by many tools, so it is only included as a heading if there are any
+  matching records, to avoid a redundant and potentially-confusing `none` header otherwise.
+  Severities `error`, `warning` and `note` are always included even if no records, as these levels
+  are all relevant for static analysis issues.
+- `get_issue_count_for_severity(severity)`: Get the total number of results at this severity.
+- `get_issue_type_count_for_severity(severity)`:  Get the total number of issue types at this severity.
+- `get_issues_grouped_by_type_for_severity(severity)`: Get a dict from issue type key (code + description)
+  to the sorted list of results of that type.
+- `get_issue_type_histogram_for_severity(severity)`: Get a dict from issue type key (code + description)
+  to the number of results of that type.
+- `get_issues_for_severity(severity)`: Get a flat list of results at the given severity.  This is
+  like the result of `get_issues_grouped_by_type_for_severity` but flattened from a `dict[str, list]`
+  to a single `list` in the same order as the original sequence of lists.
 
 #### Disaggregation and filename access
 
