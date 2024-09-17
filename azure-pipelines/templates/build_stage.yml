@@ -1,3 +1,4 @@
+stages:
 - stage: Build
   jobs:
   - job: Build
