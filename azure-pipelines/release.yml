@@ -3,10 +3,10 @@ name: Release
 trigger: none
 
 variables:
-  TeamName: "sarif-tools"
-  architecture: "x64"
-  ARTIFACT_NAME_TARBALL: "tarball"
-  ARTIFACT_NAME_WHEEL: "wheel"
+  TeamName: sarif-tools
+  architecture: x64
+  ARTIFACT_NAME_TARBALL: tarball
+  ARTIFACT_NAME_WHEEL: wheel
 
 resources:
   repositories:
@@ -85,9 +85,15 @@ extends:
         jobs:
         - job: CreateRelease
           steps:
+            - checkout: self
+              fetchDepth: 1
+              fetchTags: false
+              persistCredentials: true
+
             - script: |
                 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                 git config user.name "Azure Piplines"
+                git fetch --depth 1 origin main
                 git tag -a $(releaseVersionWithPrefix) -m "Release $(releaseVersionWithPrefix)" origin/main
                 git push origin $(releaseVersionWithPrefix)
               displayName: Create git tag
