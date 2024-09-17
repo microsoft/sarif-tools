@@ -5,8 +5,6 @@ pr: none
 variables:
   TeamName: sarif-tools
   architecture: x64
-  ARTIFACT_NAME_TARBALL: tarball
-  ARTIFACT_NAME_WHEEL: wheel
 
 resources:
   repositories:
