@@ -91,9 +91,7 @@ extends:
           steps:
             - checkout: self
 
-            - template: azure-pipelines/download_build_artifacts.yml@self
-              parameters:
-                buildId: ${{ parameters.buildId }}
+            - download: current
 
             # publish the signed package to PyPi
             - template: MicroBuild.Publish.yml@MicroBuildTemplate
