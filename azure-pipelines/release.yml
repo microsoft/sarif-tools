@@ -31,8 +31,6 @@ extends:
       - stage: Build
         jobs:
           - template: azure-pipelines/build.yml@self
-            parameters:
-              signType: Test
 
       - stage: CreateRelease
         displayName: Create GitHub Release
@@ -78,9 +76,9 @@ extends:
               - task: ManualValidation@0
                 timeoutInMinutes: 1440 # task times out in 1 day
                 inputs:
-                  notifyUsers: 'erikd@microsoft.com'
-                  instructions: 'Please test the latest draft release and then publish it.'
-                  onTimeout: 'reject'
+                  notifyUsers: erikd@microsoft.com
+                  instructions: Please test the latest draft release and then publish it.
+                  onTimeout: reject
 
       - stage: Release
         dependsOn: WaitForValidation
@@ -100,17 +98,13 @@ extends:
               parameters:
                 buildId: ${{ parameters.buildId }}
 
-            # Remove the _manifest folder (sbom) from the dist.signed artifact, since we don't want to publish it to PyPi
-            - script: rd /s /q $(System.ArtifactsDirectory)\dist.signed\_manifest
-              displayName: Remove _manifest folder
-
             # publish the signed package to PyPi
             - template: MicroBuild.Publish.yml@MicroBuildTemplate
               parameters:
                 intent: PackageDistribution
                 contentType: PyPi
                 contentSource: Folder
-                folderLocation: $(System.ArtifactsDirectory)/dist.signed
+                folderLocation: $(Build.StagingDirectory)/dist
                 waitForReleaseCompletion: true
                 owners: erikd@microsoft.com
                 approvers: grwheele@microsoft.com
