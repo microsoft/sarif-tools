@@ -1,6 +1,6 @@
 name: Release
-
 trigger: none
+pr: none
 
 variables:
   TeamName: sarif-tools
