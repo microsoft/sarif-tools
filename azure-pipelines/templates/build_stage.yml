@@ -1,0 +1,43 @@
+- stage: Build
+  jobs:
+  - job: Build
+
+    templateContext:
+      outputs:
+        - output: pipelineArtifact
+          targetPath: $(Build.StagingDirectory)/wheel/sarif_tools-$(releaseVersion)-py3-none-any.whl
+          sbomBuildDropPath: $(Build.StagingDirectory)/wheel
+          artifactName: $(ARTIFACT_NAME_WHEEL)
+        - output: pipelineArtifact
+          targetPath: $(Build.StagingDirectory)/tarball/sarif_tools-$(releaseVersion).tar.gz
+          sbomBuildDropPath: $(Build.StagingDirectory)/tarball
+          artifactName: $(ARTIFACT_NAME_TARBALL)
+
+    variables:
+      python.version: "3.8"
+
+    steps:
+      - template: azure-pipelines/templates/use_python.yml@self
+
+      - script: pipx install poetry
+        displayName: Install Poetry
+
+      - script: poetry build --no-interaction
+        displayName: poetry build
+
+      - powershell: |
+          $releaseVersion = & poetry version --short
+          echo "releaseVersion: $releaseVersion"
+          echo "##vso[task.setvariable variable=releaseVersion]$releaseVersion"
+          echo "##vso[task.setvariable variable=releaseVersionWithPrefix;isOutput=true]v$releaseVersion"
+        displayName: Get release version
+        name: getReleaseVersionStep
+
+      - task: CopyFiles@2
+        displayName: Copy wheel and tarball
+        inputs:
+          sourceFolder: dist
+          targetFolder: $(Build.StagingDirectory)/dist
+          contents: |
+            sarif_tools-$(releaseVersion)-py3-none-any.whl
+            sarif_tools-$(releaseVersion).tar.gz

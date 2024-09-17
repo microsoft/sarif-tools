@@ -26,9 +26,7 @@ extends:
     customBuildTags:
       - ES365AIMigrationTooling
     stages:
-      - stage: Build
-        jobs:
-          - template: azure-pipelines/build.yml@self
+      - template: azure-pipelines/templates/build_stage.yml@self
 
       - stage: CreateRelease
         displayName: Create GitHub Release
