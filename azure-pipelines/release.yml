@@ -58,10 +58,9 @@ extends:
                 repositoryName: debonte/sarif-tools
                 action: create
                 target: $(releaseVersionWithPrefix)
+                tag: $(releaseVersionWithPrefix)
                 isDraft: true
                 addChangeLog: false
-                tagSource: auto
-                title: $(customTagName)
                 assets: $(Pipeline.Workspace)/dist/*
 
       - stage: WaitForValidation
