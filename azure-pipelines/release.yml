@@ -78,8 +78,8 @@ extends:
                 TargetFolder: $(Build.ArtifactStagingDirectory)/tarball
 
       - stage: CreateRelease
-        dependsOn:
-          - Build
+        displayName: Create GitHub Release
+        dependsOn: Build
         variables:
           releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
         jobs:
@@ -112,8 +112,7 @@ extends:
                 assets: $(Pipeline.Workspace)/dist/*
 
       - stage: WaitForValidation
-        dependsOn:
-          - CreateRelease
+        dependsOn: CreateRelease
         jobs:
           - job: wait_for_validation
             displayName: Wait for manual validation
@@ -125,3 +124,36 @@ extends:
                   notifyUsers: 'erikd@microsoft.com'
                   instructions: 'Please test the latest draft release and then publish it.'
                   onTimeout: 'reject'
+
+      - stage: Release
+        dependsOn: WaitForValidation
+        jobs:
+        - job: Release
+          displayName: Release to PyPi
+
+          pool:
+            name: VSEngSS-MicroBuild2022-1ES # This pool is required to have the certs needed to publish to PyPi using ESRP.
+            os: windows
+            image: server2022-microbuildVS2022-1es
+
+          steps:
+            - checkout: self
+
+            - template: azure-pipelines/download_build_artifacts.yml@self
+              parameters:
+                buildId: ${{ parameters.buildId }}
+
+            # Remove the _manifest folder (sbom) from the dist.signed artifact, since we don't want to publish it to PyPi
+            - script: rd /s /q $(System.ArtifactsDirectory)\dist.signed\_manifest
+              displayName: Remove _manifest folder
+
+            # publish the signed package to PyPi
+            - template: MicroBuild.Publish.yml@MicroBuildTemplate
+              parameters:
+                intent: PackageDistribution
+                contentType: PyPi
+                contentSource: Folder
+                folderLocation: $(System.ArtifactsDirectory)/dist.signed
+                waitForReleaseCompletion: true
+                owners: erikd@microsoft.com
+                approvers: grwheele@microsoft.com
