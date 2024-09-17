@@ -42,4 +42,4 @@ extends:
     customBuildTags:
       - ES365AIMigrationTooling
     stages:
-      - template: azure-pipelines/templates/build_stage.yml@self
+      - template: templates/build_stage.yml@self
