@@ -24,17 +24,8 @@ resources:
       name: 1ESPipelineTemplates/1ESPipelineTemplates
       ref: refs/tags/release
 
-parameters:
-  - name: signType
-    displayName: Sign binaries
-    type: string
-    values: [Test, Real]
-    default: Real
-
 variables:
   TeamName: sarif-tools
-  SIGN_TYPE: ${{parameters.signType}}
-  PYTHONIOENCODING: utf-8:backslashreplace
 
 extends:
   template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
@@ -56,12 +47,12 @@ extends:
           templateContext:
             outputs:
               - output: pipelineArtifact
-                targetPath: $(Build.ArtifactStagingDirectory)/wheel/sarif_tools-$(releaseVersion)-py3-none-any.whl
-                sbomBuildDropPath: $(Build.ArtifactStagingDirectory)/wheel
+                targetPath: $(Build.StagingDirectory)/wheel/sarif_tools-$(releaseVersion)-py3-none-any.whl
+                sbomBuildDropPath: $(Build.StagingDirectory)/wheel
                 artifactName: $(ARTIFACT_NAME_WHEEL)
               - output: pipelineArtifact
-                targetPath: $(Build.ArtifactStagingDirectory)/tarball/sarif_tools-$(releaseVersion).tar.gz
-                sbomBuildDropPath: $(Build.ArtifactStagingDirectory)/tarball
+                targetPath: $(Build.StagingDirectory)/tarball/sarif_tools-$(releaseVersion).tar.gz
+                sbomBuildDropPath: $(Build.StagingDirectory)/tarball
                 artifactName: $(ARTIFACT_NAME_TARBALL)
 
           variables:
@@ -92,11 +83,3 @@ extends:
                 contents: |
                   sarif_tools-$(releaseVersion)-py3-none-any.whl
                   sarif_tools-$(releaseVersion).tar.gz
-
-      # Only sign for non-PR builds
-      - ${{ if notin(variables['Build.Reason'], 'PullRequest') }}:
-        - stage: sign
-          displayName: Sign binaries
-          dependsOn: build
-          jobs:
-            - template: azure-pipelines/sign.yml@self
