@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import tempfile
@@ -77,8 +78,13 @@ SARIF_WITH_2_ISSUES = {
 
 
 def test_print_diff():
-    old_sarif = sarif_file.SarifFile("SARIF_WITH_1_ISSUE", SARIF_WITH_1_ISSUE)
-    new_sarif = sarif_file.SarifFile("SARIF_WITH_2_ISSUES", SARIF_WITH_2_ISSUES)
+    mtime = datetime.datetime.now()
+    old_sarif = sarif_file.SarifFile(
+        "SARIF_WITH_1_ISSUE", SARIF_WITH_1_ISSUE, mtime=mtime
+    )
+    new_sarif = sarif_file.SarifFile(
+        "SARIF_WITH_2_ISSUES", SARIF_WITH_2_ISSUES, mtime=mtime
+    )
     with tempfile.TemporaryDirectory() as tmp:
         file_path = os.path.join(tmp, "diff.json")
         result = diff_op.print_diff(

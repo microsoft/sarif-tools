@@ -352,8 +352,13 @@ class SarifFile:
     Class to hold SARIF data parsed from a file and provide accessors to the data.
     """
 
-    def __init__(self, file_path, data):
+    def __init__(self, file_path, data, mtime=None):
         self.abs_file_path = os.path.abspath(file_path)
+        if mtime:
+            self.mtime = mtime
+        else:
+            stat = os.stat(file_path)
+            self.mtime = datetime.datetime.fromtimestamp(stat.st_mtime)
         self.data = data
         self.runs = [
             SarifRun(self, run_index, run_data)

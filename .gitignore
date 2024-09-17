@@ -9,7 +9,6 @@
 /.pytest_cache
 .DS_Store
 *.sarif
-*.json
 *.csv
 .coverage
 coverage.xml
