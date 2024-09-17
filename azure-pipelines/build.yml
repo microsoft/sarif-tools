@@ -1,0 +1,102 @@
+name: Build
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - azure-pipelines/release.yml
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - azure-pipelines/release.yml
+  drafts: false
+
+resources:
+  repositories:
+    - repository: 1ESPipelineTemplates
+      type: git
+      name: 1ESPipelineTemplates/1ESPipelineTemplates
+      ref: refs/tags/release
+
+parameters:
+  - name: signType
+    displayName: Sign binaries
+    type: string
+    values: [Test, Real]
+    default: Real
+
+variables:
+  TeamName: sarif-tools
+  SIGN_TYPE: ${{parameters.signType}}
+  PYTHONIOENCODING: utf-8:backslashreplace
+
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
+  parameters:
+    sdl:
+      sourceAnalysisPool: VSEngSS-MicroBuild2022-1ES
+    pool:
+      name: AzurePipelines-EO
+      demands:
+        - ImageOverride -equals 1ESPT-Ubuntu22.04
+      os: Linux
+    customBuildTags:
+      - ES365AIMigrationTooling
+    stages:
+      - stage: Build
+        jobs:
+        - job: Build
+
+          templateContext:
+            outputs:
+              - output: pipelineArtifact
+                targetPath: $(Build.ArtifactStagingDirectory)/wheel/sarif_tools-$(releaseVersion)-py3-none-any.whl
+                sbomBuildDropPath: $(Build.ArtifactStagingDirectory)/wheel
+                artifactName: $(ARTIFACT_NAME_WHEEL)
+              - output: pipelineArtifact
+                targetPath: $(Build.ArtifactStagingDirectory)/tarball/sarif_tools-$(releaseVersion).tar.gz
+                sbomBuildDropPath: $(Build.ArtifactStagingDirectory)/tarball
+                artifactName: $(ARTIFACT_NAME_TARBALL)
+
+          variables:
+            python.version: "3.8"
+
+          steps:
+            - template: azure-pipelines/templates/use_python.yml@self
+
+            - script: pipx install poetry
+              displayName: Install Poetry
+
+            - script: poetry build --no-interaction
+              displayName: poetry build
+
+            - powershell: |
+                $releaseVersion = & poetry version --short
+                echo "releaseVersion: $releaseVersion"
+                echo "##vso[task.setvariable variable=releaseVersion]$releaseVersion"
+                echo "##vso[task.setvariable variable=releaseVersionWithPrefix;isOutput=true]v$releaseVersion"
+              displayName: Get release version
+              name: getReleaseVersionStep
+
+            - task: CopyFiles@2
+              displayName: Copy wheel and tarball
+              inputs:
+                sourceFolder: dist
+                targetFolder: $(Build.StagingDirectory)/dist
+                contents: |
+                  sarif_tools-$(releaseVersion)-py3-none-any.whl
+                  sarif_tools-$(releaseVersion).tar.gz
+
+      # Only sign for non-PR builds
+      - ${{ if notin(variables['Build.Reason'], 'PullRequest') }}:
+        - stage: sign
+          displayName: Sign binaries
+          dependsOn: build
+          jobs:
+            - template: azure-pipelines/sign.yml@self
