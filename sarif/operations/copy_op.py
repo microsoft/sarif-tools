@@ -8,7 +8,7 @@ import json
 import os
 
 from sarif import loader, sarif_file
-from sarif.sarif_file import SarifFileSet
+from sarif.sarif_file import SarifFileSet, SarifFile
 
 
 def generate_sarif(
@@ -17,7 +17,7 @@ def generate_sarif(
     append_timestamp: bool,
     sarif_tools_version: str,
     cmdline: str,
-):
+) -> SarifFile:
     """
     Generate a new SARIF file based on the input files
     """
@@ -26,7 +26,7 @@ def generate_sarif(
         "version": "2.1.0",
         "runs": [],
     }
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     output_file_abs_path = os.path.abspath(output)
     conversion_timestamp_iso8601 = now.isoformat()
     conversion_timestamp_trendformat = now.strftime(sarif_file.DATETIME_FORMAT)
@@ -38,10 +38,7 @@ def generate_sarif(
             continue
         input_file_count += 1
         input_file_path = input_file.get_abs_file_path()
-        input_file_stat = os.stat(input_file_path)
-        input_file_modified_iso8601 = datetime.datetime.fromtimestamp(
-            input_file_stat.st_mtime
-        ).isoformat()
+        input_file_modified_iso8601 = input_file.mtime.isoformat()
         for input_run in input_file.runs:
             run_count += 1
             # Create a shallow copy
@@ -60,9 +57,7 @@ def generate_sarif(
                         "properties": conversion_properties,
                     }
                 },
-                "invocation": {
-                    "commandLine": cmdline,
-                },
+                "invocation": {"commandLine": cmdline, "executionSuccessful": True},
             }
             results = input_run.get_results()
             filter_stats = input_run.get_filter_stats()
