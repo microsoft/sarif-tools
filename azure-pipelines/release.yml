@@ -3,8 +3,11 @@ trigger: none
 pr: none
 
 variables:
-  TeamName: sarif-tools
-  architecture: x64
+  - template: templates/globals.yml
+  - name: TeamName
+    value: sarif-tools
+  - name: architecture
+    value: x64
 
 resources:
   repositories:

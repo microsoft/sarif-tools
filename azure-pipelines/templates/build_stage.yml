@@ -1,8 +1,7 @@
-variables:
-  ARTIFACT_NAME_WHEEL: wheel
-
 stages:
 - stage: Build
+  variables:
+    - template: globals.yml
   jobs:
   - job: Build
 

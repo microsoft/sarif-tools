@@ -1,0 +1,2 @@
+variables:
+  ARTIFACT_NAME_WHEEL: wheel
