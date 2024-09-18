@@ -26,8 +26,6 @@ resources:
 
 variables:
   TeamName: sarif-tools
-  ARTIFACT_NAME_TARBALL: tarball
-  ARTIFACT_NAME_WHEEL: wheel
 
 extends:
   template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
