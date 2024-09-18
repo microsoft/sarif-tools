@@ -36,13 +36,14 @@ extends:
         dependsOn: Build
         variables:
           releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
-        templateContext:
-          inputs:
-            - input: pipelineArtifact
-              artifactName: $(ARTIFACT_NAME_WHEEL)
-              targetPath: $(Build.StagingDirectory)/dist
         jobs:
         - job: CreateRelease
+          templateContext:
+            type: releaseJob
+            inputs:
+              - input: pipelineArtifact
+                artifactName: $(ARTIFACT_NAME_WHEEL)
+                targetPath: $(Build.StagingDirectory)/dist
           steps:
             - checkout: self
               fetchDepth: 1
