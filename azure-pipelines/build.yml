@@ -1,0 +1,10 @@
+name: Build
+trigger: none
+pr: none
+
+stages:
+  - stage: A
+    jobs:
+      - job: A1
+        steps:
+          - bash: echo "Hello world"
