@@ -40,6 +40,7 @@ extends:
         - job: CreateRelease
           templateContext:
             type: releaseJob
+            isProduction: true
             inputs:
               - input: pipelineArtifact
                 artifactName: $(ARTIFACT_NAME_WHEEL)
