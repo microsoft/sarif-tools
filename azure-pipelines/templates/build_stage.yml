@@ -8,11 +8,7 @@ stages:
     templateContext:
       outputs:
         - output: pipelineArtifact
-          targetPath: $(Build.StagingDirectory)/dist/sarif_tools-$(releaseVersion)-py3-none-any.whl
-          sbomBuildDropPath: $(Build.StagingDirectory)/dist
-          artifactName: $(ARTIFACT_NAME_WHEEL)
-        - output: pipelineArtifact
-          targetPath: $(Build.StagingDirectory)/dist/sarif_tools-$(releaseVersion).tar.gz
+          targetPath: $(Build.StagingDirectory)/dist
           sbomBuildDropPath: $(Build.StagingDirectory)/dist
           artifactName: $(ARTIFACT_NAME_WHEEL)
 
