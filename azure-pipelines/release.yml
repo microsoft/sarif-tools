@@ -6,8 +6,6 @@ variables:
   - template: templates/globals.yml
   - name: TeamName
     value: sarif-tools
-  - name: architecture
-    value: x64
 
 resources:
   repositories:
