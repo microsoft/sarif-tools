@@ -55,7 +55,7 @@ extends:
                 gitHubConnection: GitHub-sarif-tools
                 repositoryName: debonte/sarif-tools
                 action: create
-                target: $(releaseVersionWithPrefix)
+                target: main
                 tag: $(releaseVersionWithPrefix)
                 tagSource: userSpecifiedTag
                 isDraft: true
