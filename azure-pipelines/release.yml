@@ -57,6 +57,7 @@ extends:
                 action: create
                 target: $(releaseVersionWithPrefix)
                 tag: $(releaseVersionWithPrefix)
+                tagSource: userSpecifiedTag
                 isDraft: true
                 addChangeLog: false
                 assets: $(Pipeline.Workspace)/dist/*
