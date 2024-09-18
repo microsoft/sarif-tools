@@ -1,5 +1,5 @@
 name: Build
-
+pr: none
 trigger:
   branches:
     include:
@@ -7,15 +7,6 @@ trigger:
   paths:
     exclude:
       - azure-pipelines/release.yml
-
-pr:
-  branches:
-    include:
-      - main
-  paths:
-    exclude:
-      - azure-pipelines/release.yml
-  drafts: false
 
 resources:
   repositories:
