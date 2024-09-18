@@ -36,6 +36,11 @@ extends:
         dependsOn: Build
         variables:
           releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
+        templateContext:
+          inputs:
+            - input: pipelineArtifact
+              artifactName: $(ARTIFACT_NAME_WHEEL)
+              targetPath: $(Build.StagingDirectory)/dist
         jobs:
         - job: CreateRelease
           steps:
@@ -43,10 +48,6 @@ extends:
               fetchDepth: 1
               fetchTags: false
               persistCredentials: true
-
-            - download: current
-              artifact: $(ARTIFACT_NAME_WHEEL)
-              displayName: Download artifacts
 
             - script: |
                 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -68,7 +69,7 @@ extends:
                 tagSource: userSpecifiedTag
                 isDraft: true
                 addChangeLog: false
-                assets: $(Pipeline.Workspace)/$(ARTIFACT_NAME_WHEEL)/*
+                assets: $(Build.StagingDirectory)/dist/*
 
       - stage: WaitForValidation
         dependsOn: CreateRelease
