@@ -17,7 +17,7 @@ resources:
       ref: refs/tags/release
 
 extends:
-  template: azure-pipelines/MicroBuild.1ES.Official.yml@MicroBuildTemplate
+  template: azure-pipelines/MicroBuild.1ES.Official.Publish.yml@MicroBuildTemplate
   parameters:
     sdl:
       sourceAnalysisPool: VSEngSS-MicroBuild2022-1ES
@@ -99,7 +99,7 @@ extends:
       - stage: Release
         dependsOn: WaitForValidation
         jobs:
-        - job: Release
+        - job: PublishToPyPi
           displayName: Release to PyPi
 
           pool:
@@ -107,12 +107,15 @@ extends:
             os: windows
             image: server2022-microbuildVS2022-1es
 
+          templateContext:
+            type: releaseJob
+            isProduction: true
+            inputs:
+              - input: pipelineArtifact
+                artifactName: $(ARTIFACT_NAME_WHEEL)
+                targetPath: $(Build.StagingDirectory)/dist
+
           steps:
-            - checkout: self
-
-            - download: current
-
-            # publish the signed package to PyPi
             - template: MicroBuild.Publish.yml@MicroBuildTemplate
               parameters:
                 intent: PackageDistribution
