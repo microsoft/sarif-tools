@@ -41,6 +41,10 @@ extends:
               fetchTags: false
               persistCredentials: true
 
+            - download: current
+              artifact: $(ARTIFACT_NAME_WHEEL)
+              displayName: Download artifacts
+
             - script: |
                 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                 git config user.name "Azure Piplines"
@@ -56,11 +60,12 @@ extends:
                 repositoryName: debonte/sarif-tools
                 action: create
                 target: main
+                title: $(releaseVersionWithPrefix)
                 tag: $(releaseVersionWithPrefix)
                 tagSource: userSpecifiedTag
                 isDraft: true
                 addChangeLog: false
-                assets: $(Pipeline.Workspace)/dist/*
+                assets: $(Pipeline.Workspace)/$(ARTIFACT_NAME_WHEEL)/*
 
       - stage: WaitForValidation
         dependsOn: CreateRelease

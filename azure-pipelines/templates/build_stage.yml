@@ -1,3 +1,6 @@
+variables:
+  ARTIFACT_NAME_WHEEL: wheel
+
 stages:
 - stage: Build
   jobs:
@@ -12,7 +15,7 @@ stages:
         - output: pipelineArtifact
           targetPath: $(Build.StagingDirectory)/dist/sarif_tools-$(releaseVersion).tar.gz
           sbomBuildDropPath: $(Build.StagingDirectory)/dist
-          artifactName: $(ARTIFACT_NAME_TARBALL)
+          artifactName: $(ARTIFACT_NAME_WHEEL)
 
     variables:
       python.version: "3.8"
