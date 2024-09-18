@@ -31,20 +31,12 @@ extends:
     stages:
       - template: templates/build_stage.yml@self
 
-      - stage: CreateRelease
-        displayName: Create GitHub Release
+      - stage: CreateTag
         dependsOn: Build
         variables:
           releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
         jobs:
-        - job: CreateRelease
-          templateContext:
-            type: releaseJob
-            isProduction: true
-            inputs:
-              - input: pipelineArtifact
-                artifactName: $(ARTIFACT_NAME_WHEEL)
-                targetPath: $(Build.StagingDirectory)/dist
+        - job: CreateTag
           steps:
             - checkout: self
               fetchDepth: 1
@@ -59,6 +51,21 @@ extends:
                 git push origin $(releaseVersionWithPrefix)
               displayName: Create git tag
 
+      - stage: CreateRelease
+        displayName: Create GitHub Release
+        dependsOn: CreateTag
+        variables:
+          releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
+        jobs:
+        - job: CreateRelease
+          templateContext:
+            type: releaseJob
+            isProduction: true
+            inputs:
+              - input: pipelineArtifact
+                artifactName: $(ARTIFACT_NAME_WHEEL)
+                targetPath: $(Build.StagingDirectory)/dist
+          steps:
             - task: GitHubRelease@1 #https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/github-release-v1?view=azure-pipelines
               displayName: Create GitHub Release
               inputs:
