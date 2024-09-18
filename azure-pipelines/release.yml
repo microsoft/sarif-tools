@@ -53,7 +53,9 @@ extends:
 
       - stage: CreateRelease
         displayName: Create GitHub Release
-        dependsOn: CreateTag
+        dependsOn:
+          - Build
+          - CreateTag
         variables:
           releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
         jobs:
