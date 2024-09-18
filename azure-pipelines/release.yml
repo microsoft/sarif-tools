@@ -72,7 +72,7 @@ extends:
               displayName: Create GitHub Release
               inputs:
                 gitHubConnection: GitHub-sarif-tools
-                repositoryName: debonte/sarif-tools
+                repositoryName: microsoft/sarif-tools
                 action: create
                 target: $(Build.SourceBranchName)
                 title: $(releaseVersionWithPrefix)
