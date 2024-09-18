@@ -46,8 +46,8 @@ extends:
             - script: |
                 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                 git config user.name "Azure Piplines"
-                git fetch --depth 1 origin main
-                git tag -a $(releaseVersionWithPrefix) -m "Release $(releaseVersionWithPrefix)" origin/main
+                git fetch --depth 1 origin $(Build.SourceBranchName)
+                git tag -a $(releaseVersionWithPrefix) -m "Release $(releaseVersionWithPrefix)" origin/$(Build.SourceBranchName)
                 git push origin $(releaseVersionWithPrefix)
               displayName: Create git tag
 
@@ -74,7 +74,7 @@ extends:
                 gitHubConnection: GitHub-sarif-tools
                 repositoryName: debonte/sarif-tools
                 action: create
-                target: main
+                target: $(Build.SourceBranchName)
                 title: $(releaseVersionWithPrefix)
                 tag: $(releaseVersionWithPrefix)
                 tagSource: userSpecifiedTag
