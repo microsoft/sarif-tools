@@ -32,6 +32,7 @@ extends:
       - template: templates/build_stage.yml@self
 
       - stage: CreateTag
+        displayName: Create Tag
         dependsOn: Build
         variables:
           releaseVersionWithPrefix: $[ stageDependencies.Build.Build.outputs['getReleaseVersionStep.releaseVersionWithPrefix'] ]
