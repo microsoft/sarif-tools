@@ -10,7 +10,7 @@ on:
 
 jobs:
   hygiene:
-    #if: github.repository == 'microsoft/sarif-tools'
+    if: github.repository == 'microsoft/sarif-tools'
     runs-on: ubuntu-latest
     name: Hygiene
     permissions:
@@ -31,7 +31,7 @@ jobs:
         run: poetry check
 
   test:
-    #if: github.repository == 'microsoft/sarif-tools'
+    if: github.repository == 'microsoft/sarif-tools'
     runs-on: ubuntu-latest
     name: Test
     steps:
