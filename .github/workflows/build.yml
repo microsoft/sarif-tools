@@ -36,8 +36,3 @@ jobs:
         with:
           name: wheel
           path: dist/sarif_tools-${{ steps.get_version.outputs.releaseVersion }}-py3-none-any.whl
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: tarball
-          path: dist/sarif_tools-${{ steps.get_version.outputs.releaseVersion }}.tar.gz
