@@ -1,10 +1,34 @@
 name: Build
-trigger: none
 pr: none
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - azure-pipelines/release.yml
 
-stages:
-  - stage: A
-    jobs:
-      - job: A1
-        steps:
-          - bash: echo "Hello world"
+resources:
+  repositories:
+    - repository: 1ESPipelineTemplates
+      type: git
+      name: 1ESPipelineTemplates/1ESPipelineTemplates
+      ref: refs/tags/release
+
+variables:
+  TeamName: sarif-tools
+
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
+  parameters:
+    sdl:
+      sourceAnalysisPool: VSEngSS-MicroBuild2022-1ES
+    pool:
+      name: AzurePipelines-EO
+      demands:
+        - ImageOverride -equals 1ESPT-Ubuntu22.04
+      os: Linux
+    customBuildTags:
+      - ES365AIMigrationTooling
+    stages:
+      - template: templates/build_stage.yml@self
