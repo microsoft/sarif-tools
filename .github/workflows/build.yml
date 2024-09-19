@@ -28,9 +28,10 @@ jobs:
         run: poetry build --no-interaction
 
       - name: Get Verison
+        id: get_version
         shell: bash
         run: echo "releaseVersion=$(& poetry version --short)" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v3
         with:
-          path: dist/sarif_tools-$(releaseVersion)*
+          path: dist/sarif_tools-${{ steps.get_version.outputs.releaseVersion }}*
