@@ -1,0 +1,52 @@
+name: Validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  hygiene:
+    if: github.repository == 'microsoft/sarif-tools'
+    runs-on: ubuntu-latest
+    name: Hygiene
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Validate pyproject.toml and poetry.lock
+        run: poetry check
+
+  test:
+    if: github.repository == 'microsoft/sarif-tools'
+    runs-on: ubuntu-latest
+    name: Test
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run tests
+        run: poetry run pytest

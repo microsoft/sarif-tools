@@ -1,0 +1,38 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    if: github.repository == 'microsoft/sarif-tools'
+    runs-on: ubuntu-latest
+    name: Build
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Poetry Build
+        run: poetry build --no-interaction
+
+      - name: Get Verison
+        id: get_version
+        shell: bash
+        run: echo "releaseVersion=$(poetry version --short)" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheel
+          path: dist/sarif_tools-${{ steps.get_version.outputs.releaseVersion }}-py3-none-any.whl
