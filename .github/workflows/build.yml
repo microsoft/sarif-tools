@@ -33,5 +33,4 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: sarif_tools-$(releaseVersion)*
-          path: dist
+          path: dist/sarif_tools-$(releaseVersion)*
