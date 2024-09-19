@@ -30,7 +30,7 @@ jobs:
       - name: Get Verison
         id: get_version
         shell: bash
-        run: echo "releaseVersion=$(& poetry version --short)" >> $GITHUB_OUTPUT
+        run: echo "releaseVersion=$(poetry version --short)" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v3
         with:
