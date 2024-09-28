@@ -102,7 +102,8 @@ def read_result_location(result) -> tuple[str, str]:
 
 def read_result_rule(result, run) -> tuple[Union[dict, None], int]:
     """
-    Extract the rule metadata for the result's rule id/index, following the rules at
+    Return's the corresponding rule object for the specified result, plus its index
+    in the rules array. Follows the rules at
     https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790895
     """
     ruleIndex = result.get("ruleIndex", None)
