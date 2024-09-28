@@ -157,26 +157,18 @@ def read_result_severity(result, run = {}) -> Literal["none", "note", "warning",
     if severity:
         return severity
 
-    # If kind has any value other than "fail", then if level is absent, it SHALL default to "none"...
-    kind = result.get("kind", "fail") # If kind is absent, it SHALL default to "fail".
+    # If kind has any value other than "fail", then if level is absent,
+    # it SHALL default to "none"
+    kind = result.get("kind", "fail")
     if kind and kind != "fail":
         return "none"
 
-    # If kind has the value "fail" and level is absent, then level SHALL be determined by the following procedure:
+    # If kind has the value "fail" and level is absent, then...
     rule, ruleIndex = read_result_rule(result, run)
-
-    # IF rule is present THEN
     if rule:
-    #   LET theDescriptor be the reportingDescriptor object that it specifies.
-    #   # Is there a configuration override for the level property?
-    #   IF result.provenance.invocationIndex is >= 0 THEN
-    #     LET theInvocation be the invocation object that it specifies.
+        # Honor the invocation's configuration override if present...
         invocation = read_result_invocation(result, run)
         if invocation:
-    #     IF theInvocation.ruleConfigurationOverrides is present
-    #         AND it contains a configurationOverride object whose
-    #         descriptor property specifies theDescriptor THEN
-    #       LET theOverride be that configurationOverride object.
             ruleConfigurationOverrides = invocation.get("ruleConfigurationOverrides", [])
             override = next(
                 (
@@ -187,28 +179,21 @@ def read_result_severity(result, run = {}) -> Literal["none", "note", "warning",
                 ),
                 None,
             )
-    #       IF theOverride.configuration.level is present THEN
-    #         Set level to theConfiguration.level.
+
             if override:
                 overrideLevel = override.get("configuration", {}).get("level")
                 if overrideLevel:
                     return overrideLevel
-    #   ELSE
-    #     # There is no configuration override for level. Is there a default configuration for it?
-    #     IF theDescriptor.defaultConfiguration.level is present THEN
-    #       SET level to theDescriptor.defaultConfiguration.level.
+
+        # Otherwise, use the rule's default configuraiton if present...
         defaultConfiguration = rule.get("defaultConfiguration")
         if defaultConfiguration:
             severity = defaultConfiguration.get("level")
             if severity:
                 return severity
 
-    # IF level has not yet been set THEN
-    #   SET level to "warning".
-    if severity is None:
-        severity = "warning"
-
-    return severity
+    # Otherwise, fall back to warning
+    return "warning"
 
 
 def record_sort_key(record: dict) -> str:
