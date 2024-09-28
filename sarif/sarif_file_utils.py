@@ -6,7 +6,7 @@ https://docs.oasis-open.org/sarif/sarif/v2.1.0/cs01/sarif-v2.1.0-cs01.html#_Toc1
 """
 
 import textwrap
-from typing import Literal, Union
+from typing import Literal, Tuple, Union
 
 # SARIF severity levels as per
 # https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
@@ -65,7 +65,7 @@ def combine_record_code_and_description(record: dict) -> str:
     return combine_code_and_description(record["Code"], record["Description"])
 
 
-def read_result_location(result) -> tuple[str, str]:
+def read_result_location(result) -> Tuple[str, str]:
     """
     Extract the file path and line number strings from the Result.
 
@@ -100,7 +100,7 @@ def read_result_location(result) -> tuple[str, str]:
     return (file_path, line_number)
 
 
-def read_result_rule(result, run) -> tuple[Union[dict, None], int]:
+def read_result_rule(result, run) -> Tuple[Union[dict, None], int]:
     """
     Return's the corresponding rule object for the specified result, plus its index
     in the rules array. Follows the rules at
