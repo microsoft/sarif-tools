@@ -6,7 +6,7 @@ https://docs.oasis-open.org/sarif/sarif/v2.1.0/cs01/sarif-v2.1.0-cs01.html#_Toc1
 """
 
 import textwrap
-from typing import Tuple
+from typing import Literal, Union
 
 # SARIF severity levels as per
 # https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
@@ -65,7 +65,7 @@ def combine_record_code_and_description(record: dict) -> str:
     return combine_code_and_description(record["Code"], record["Description"])
 
 
-def read_result_location(result) -> Tuple[str, str]:
+def read_result_location(result) -> tuple[str, str]:
     """
     Extract the file path and line number strings from the Result.
 
@@ -98,6 +98,117 @@ def read_result_location(result) -> Tuple[str, str]:
                 # Finally, try the logical location written by SpotBugs for some errors
                 file_path = logical_locations[0].get("fullyQualifiedName", None)
     return (file_path, line_number)
+
+
+def read_result_rule(result, run) -> tuple[Union[dict, None], int]:
+    """
+    Extract the rule metadata for the result's rule id/index, following the rules at
+    https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790895
+    """
+    ruleIndex = result.get("ruleIndex", None)
+    ruleId = result.get("ruleId", None)
+    rule = result.get("rule", None)
+
+    if not ruleIndex and rule:
+        ruleIndex = rule.get("index")
+
+    if not ruleId and rule:
+        ruleId = rule.get("id")
+
+    if not ruleIndex and not ruleId:
+        return (None, -1)
+
+    rules = run.get("tool", {}).get("driver", {}).get("rules", [])
+
+    if ruleIndex:
+        ruleIndex = int(ruleIndex)
+        return (rules[ruleIndex], ruleIndex)
+
+    for i, rule in enumerate(rules):
+        if rule.get("id") == ruleId:
+            return (rule, i)
+
+    return (None, -1)
+
+
+def read_result_invocation(result, run):
+    """
+    Extract the invocation metadata for the result, following the rules at
+    https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790917
+    """
+    invocationIndex = result.get("provenance", {}).get("invocationIndex", None)
+    if invocationIndex is None:
+        return None
+    
+    invocationIndex = int(invocationIndex)
+    if invocationIndex < 0:
+        return None
+
+    invocations = run.get("invocations")
+    return invocations[invocationIndex]
+
+
+def read_result_severity(result, run = {}) -> Literal["none", "note", "warning", "error"]:
+    """
+    Extract the severity level from the result following the rules at
+    https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
+    """
+    severity = result.get("level")
+    if severity:
+        return severity
+
+    # If kind has any value other than "fail", then if level is absent, it SHALL default to "none"...
+    kind = result.get("kind", "fail") # If kind is absent, it SHALL default to "fail".
+    if kind and kind != "fail":
+        return "none"
+
+    # If kind has the value "fail" and level is absent, then level SHALL be determined by the following procedure:
+    rule, ruleIndex = read_result_rule(result, run)
+
+    # IF rule is present THEN
+    if rule:
+    #   LET theDescriptor be the reportingDescriptor object that it specifies.
+    #   # Is there a configuration override for the level property?
+    #   IF result.provenance.invocationIndex is >= 0 THEN
+    #     LET theInvocation be the invocation object that it specifies.
+        invocation = read_result_invocation(result, run)
+        if invocation:
+    #     IF theInvocation.ruleConfigurationOverrides is present
+    #         AND it contains a configurationOverride object whose
+    #         descriptor property specifies theDescriptor THEN
+    #       LET theOverride be that configurationOverride object.
+            ruleConfigurationOverrides = invocation.get("ruleConfigurationOverrides", [])
+            override = next(
+                (
+                    override
+                    for override in ruleConfigurationOverrides
+                    if override.get("descriptor").get("id") == rule.get("id") or
+                       override.get("descriptor").get("index") == str(ruleIndex)
+                ),
+                None,
+            )
+    #       IF theOverride.configuration.level is present THEN
+    #         Set level to theConfiguration.level.
+            if override:
+                overrideLevel = override.get("configuration", {}).get("level")
+                if overrideLevel:
+                    return overrideLevel
+    #   ELSE
+    #     # There is no configuration override for level. Is there a default configuration for it?
+    #     IF theDescriptor.defaultConfiguration.level is present THEN
+    #       SET level to theDescriptor.defaultConfiguration.level.
+        defaultConfiguration = rule.get("defaultConfiguration")
+        if defaultConfiguration:
+            severity = defaultConfiguration.get("level")
+            if severity:
+                return severity
+
+    # IF level has not yet been set THEN
+    #   SET level to "warning".
+    if severity is None:
+        severity = "warning"
+
+    return severity
 
 
 def record_sort_key(record: dict) -> str:
