@@ -6,7 +6,7 @@ https://docs.oasis-open.org/sarif/sarif/v2.1.0/cs01/sarif-v2.1.0-cs01.html#_Toc1
 """
 
 import textwrap
-from typing import Tuple
+from typing import Literal, Tuple, Union
 
 # SARIF severity levels as per
 # https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
@@ -98,6 +98,101 @@ def read_result_location(result) -> Tuple[str, str]:
                 # Finally, try the logical location written by SpotBugs for some errors
                 file_path = logical_locations[0].get("fullyQualifiedName", None)
     return (file_path, line_number)
+
+
+def read_result_rule(result, run) -> Tuple[Union[dict, None], int]:
+    """
+    Returns the corresponding rule object for the specified result, plus its index
+    in the rules array. Follows the rules at
+    https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790895
+    """
+    ruleIndex = result.get("ruleIndex")
+    ruleId = result.get("ruleId")
+    rule = result.get("rule")
+
+    if rule:
+        if ruleIndex is None:
+            ruleIndex = rule.get("index")
+
+        if ruleId is None:
+            ruleId = rule.get("id")
+
+    rules = run.get("tool", {}).get("driver", {}).get("rules", [])
+
+    if ruleIndex is not None and ruleIndex >= 0 and ruleIndex < len(rules):
+        return (rules[ruleIndex], ruleIndex)
+
+    if ruleId:
+        for i, rule in enumerate(rules):
+            if rule.get("id") == ruleId:
+                return (rule, i)
+
+    return (None, -1)
+
+
+def read_result_invocation(result, run):
+    """
+    Extract the invocation metadata for the result, following the rules at
+    https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790917
+    """
+    invocationIndex = result.get("provenance", {}).get("invocationIndex")
+    if invocationIndex is None:
+        return None
+
+    invocations = run.get("invocations")
+
+    if invocations and invocationIndex >= 0 and invocationIndex < len(invocations):
+        return invocations[invocationIndex]
+
+    return None
+
+
+def read_result_severity(result, run) -> Literal["none", "note", "warning", "error"]:
+    """
+    Extract the severity level from the result following the rules at
+    https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
+    """
+    severity = result.get("level")
+    if severity:
+        return severity
+
+    # If kind has any value other than "fail", then if level is absent,
+    # it SHALL default to "none"
+    kind = result.get("kind", "fail")
+    if kind and kind != "fail":
+        return "none"
+
+    # If kind has the value "fail" and level is absent, then...
+    rule, ruleIndex = read_result_rule(result, run)
+    if rule:
+        # Honor the invocation's configuration override if present...
+        invocation = read_result_invocation(result, run)
+        if invocation:
+            ruleConfigurationOverrides = invocation.get("ruleConfigurationOverrides", [])
+            override = next(
+                (
+                    override
+                    for override in ruleConfigurationOverrides
+                    if override.get("descriptor", {}).get("id") == rule.get("id") or
+                       override.get("descriptor", {}).get("index") == ruleIndex
+                ),
+                None,
+            )
+
+            if override:
+                overrideLevel = override.get("configuration", {}).get("level")
+                if overrideLevel:
+                    return overrideLevel
+
+        # Otherwise, use the rule's default configuraiton if present...
+        defaultConfiguration = rule.get("defaultConfiguration")
+        if defaultConfiguration:
+            severity = defaultConfiguration.get("level")
+            if severity:
+                return severity
+
+    # Otherwise, fall back to warning
+    return "warning"
 
 
 def record_sort_key(record: dict) -> str:

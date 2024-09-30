@@ -13,6 +13,7 @@ from sarif import sarif_file_utils
 from sarif.sarif_file_utils import (
     SARIF_SEVERITIES_WITHOUT_NONE,
     SARIF_SEVERITIES_WITH_NONE,
+    read_result_severity,
 )
 from sarif.filter.general_filter import GeneralFilter
 from sarif.filter.filter_stats import FilterStats
@@ -250,12 +251,7 @@ class SarifRun:
                         file_path = file_path[prefixlen:]
                     break
 
-        # Get the error severity, if included, and code
-        severity = result.get(
-            "level", "warning"
-        )  # If an error has no specified level then by default it is a warning
-        # TODO: improve this logic to match the rules in
-        # https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
+        severity = read_result_severity(result, self.run_data)
 
         if "message" in result:
             # per RFC3629 At least one of the text (§3.11.8) or id (§3.11.10) properties SHALL be present https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#RFC3629
