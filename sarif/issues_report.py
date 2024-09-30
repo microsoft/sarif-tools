@@ -54,13 +54,15 @@ class IssuesReport:
                     key_and_count["count"] += 1
                     common_desc_stem = key_and_count["common_desc"]
                     desc = record["Description"]
-                    if common_desc_stem != desc:
+                    if not desc.startswith(common_desc_stem):
                         for char_pos, (char1, char2) in enumerate(
                             zip(common_desc_stem, desc)
                         ):
                             if char1 != char2:
+                                new_desc_stem = common_desc_stem[0:char_pos]
+                                key_and_count["common_desc"] = new_desc_stem
                                 key_and_count["key"] = combine_code_and_description(
-                                    code, common_desc_stem[0:char_pos] + " ..."
+                                    code, new_desc_stem + " ..."
                                 )
                                 break
             sorted_codes = sorted(
