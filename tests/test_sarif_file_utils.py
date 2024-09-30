@@ -44,48 +44,53 @@ def test_read_result_rule():
                 {"id": "id0", "defaultConfiguration": {"level": "none"}},
                 {"id": "id1", "defaultConfiguration": {"level": "error"}}
              ]}}}
-    expectedIndex = 1
-    expectedResult = run["tool"]["driver"]["rules"][expectedIndex]
+    rule_id0 = run["tool"]["driver"]["rules"][0]
+    rule_id1 = run["tool"]["driver"]["rules"][1]
 
     result = {}
     (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
     assert rule is None
     assert ruleIndex == -1
 
-    result = {"ruleIndex": "1"}
+    result = {"ruleIndex": 1}
     (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
-    assert rule == expectedResult
-    assert ruleIndex == expectedIndex
+    assert rule == rule_id1
+    assert ruleIndex == 1
 
-    result = {"rule": { "index": "1"}}
+    result = {"rule": { "index": 1}}
     (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
-    assert rule == expectedResult
-    assert ruleIndex == expectedIndex
+    assert rule == rule_id1
+    assert ruleIndex == 1
 
     result = {"ruleId": "id1"}
     (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
-    assert rule == expectedResult
-    assert ruleIndex == expectedIndex
+    assert rule == rule_id1
+    assert ruleIndex == 1
 
     result = {"rule": { "id": "id1"}}
     (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
-    assert rule == expectedResult
-    assert ruleIndex == expectedIndex
+    assert rule == rule_id1
+    assert ruleIndex == 1
+
+    result = {"ruleIndex": 0}
+    (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
+    assert rule == rule_id0
+    assert ruleIndex == 0
 
 
 def test_read_result_severity():
     result = {"level": "error"}
-    severity = sarif_file_utils.read_result_severity(result)
+    severity = sarif_file_utils.read_result_severity(result, {})
     assert severity == "error"
 
     # If kind has any value other than "fail", then if level is absent, it SHALL default to "none"...
     result = {"kind": "other"}
-    severity = sarif_file_utils.read_result_severity(result)
+    severity = sarif_file_utils.read_result_severity(result, {})
     assert severity == "none"
 
     run = {"invocations": [
              {"ruleConfigurationOverrides": [ {"descriptor": {"id": "id1"}, "configuration": {"level": "note"}} ]},
-             {"ruleConfigurationOverrides": [ {"descriptor": {"index": "1"}, "configuration": {"level": "note"}} ]},
+             {"ruleConfigurationOverrides": [ {"descriptor": {"index": 1}, "configuration": {"level": "note"}} ]},
              { }
            ],
            "tool":
@@ -109,11 +114,11 @@ def test_read_result_severity():
     #       LET theOverride be that configurationOverride object.
     #       IF theOverride.configuration.level is present THEN
     #         Set level to theConfiguration.level.
-    result = {"ruleIndex": "1", "provenance": {"invocationIndex": "0"}}
+    result = {"ruleIndex": 1, "provenance": {"invocationIndex": 0}}
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "note"
 
-    result = {"ruleIndex": "1", "provenance": {"invocationIndex": "1"}}
+    result = {"ruleIndex": 1, "provenance": {"invocationIndex": 1}}
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "note"
 
@@ -122,11 +127,11 @@ def test_read_result_severity():
     #     IF theDescriptor.defaultConfiguration.level is present THEN
     #       SET level to theDescriptor.defaultConfiguration.level.
 
-    result = {"ruleIndex": "1"}
+    result = {"ruleIndex": 1}
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 
-    result = {"rule": { "index": "1"}}
+    result = {"rule": { "index": 1}}
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 
@@ -138,12 +143,12 @@ def test_read_result_severity():
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 
-    result = {"ruleIndex": "1", "provenance": {"invocationIndex": "2"}}
+    result = {"ruleIndex": 1, "provenance": {"invocationIndex": 2}}
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 
     # IF level has not yet been set THEN
     #   SET level to "warning".
     result = {}
-    severity = sarif_file_utils.read_result_severity(result)
+    severity = sarif_file_utils.read_result_severity(result, {})
     assert severity == "warning"

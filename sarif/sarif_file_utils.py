@@ -102,32 +102,30 @@ def read_result_location(result) -> Tuple[str, str]:
 
 def read_result_rule(result, run) -> Tuple[Union[dict, None], int]:
     """
-    Return's the corresponding rule object for the specified result, plus its index
+    Returns the corresponding rule object for the specified result, plus its index
     in the rules array. Follows the rules at
     https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790895
     """
-    ruleIndex = result.get("ruleIndex", None)
-    ruleId = result.get("ruleId", None)
-    rule = result.get("rule", None)
+    ruleIndex = result.get("ruleIndex")
+    ruleId = result.get("ruleId")
+    rule = result.get("rule")
 
-    if not ruleIndex and rule:
-        ruleIndex = rule.get("index")
+    if rule:
+        if ruleIndex is None:
+            ruleIndex = rule.get("index")
 
-    if not ruleId and rule:
-        ruleId = rule.get("id")
-
-    if not ruleIndex and not ruleId:
-        return (None, -1)
+        if ruleId is None:
+            ruleId = rule.get("id")
 
     rules = run.get("tool", {}).get("driver", {}).get("rules", [])
 
-    if ruleIndex:
-        ruleIndex = int(ruleIndex)
+    if ruleIndex is not None:
         return (rules[ruleIndex], ruleIndex)
 
-    for i, rule in enumerate(rules):
-        if rule.get("id") == ruleId:
-            return (rule, i)
+    if ruleId:
+        for i, rule in enumerate(rules):
+            if rule.get("id") == ruleId:
+                return (rule, i)
 
     return (None, -1)
 
@@ -137,11 +135,10 @@ def read_result_invocation(result, run):
     Extract the invocation metadata for the result, following the rules at
     https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790917
     """
-    invocationIndex = result.get("provenance", {}).get("invocationIndex", None)
+    invocationIndex = result.get("provenance", {}).get("invocationIndex")
     if invocationIndex is None:
         return None
     
-    invocationIndex = int(invocationIndex)
     if invocationIndex < 0:
         return None
 
@@ -149,7 +146,7 @@ def read_result_invocation(result, run):
     return invocations[invocationIndex]
 
 
-def read_result_severity(result, run = {}) -> Literal["none", "note", "warning", "error"]:
+def read_result_severity(result, run) -> Literal["none", "note", "warning", "error"]:
     """
     Extract the severity level from the result following the rules at
     https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#_Toc141790898
@@ -175,8 +172,8 @@ def read_result_severity(result, run = {}) -> Literal["none", "note", "warning",
                 (
                     override
                     for override in ruleConfigurationOverrides
-                    if override.get("descriptor").get("id") == rule.get("id") or
-                       override.get("descriptor").get("index") == str(ruleIndex)
+                    if override.get("descriptor", {}).get("id") == rule.get("id") or
+                       override.get("descriptor", {}).get("index") == ruleIndex
                 ),
                 None,
             )
