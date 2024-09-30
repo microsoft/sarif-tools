@@ -119,7 +119,7 @@ def read_result_rule(result, run) -> Tuple[Union[dict, None], int]:
 
     rules = run.get("tool", {}).get("driver", {}).get("rules", [])
 
-    if ruleIndex is not None:
+    if ruleIndex is not None and ruleIndex >= 0 and ruleIndex < len(rules):
         return (rules[ruleIndex], ruleIndex)
 
     if ruleId:

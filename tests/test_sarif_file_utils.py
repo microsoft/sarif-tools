@@ -77,6 +77,11 @@ def test_read_result_rule():
     assert rule == rule_id0
     assert ruleIndex == 0
 
+    result = {"ruleIndex": 0}
+    (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, {})
+    assert rule is None
+    assert ruleIndex == -1
+
 
 def test_read_result_severity():
     result = {"level": "error"}
@@ -150,5 +155,9 @@ def test_read_result_severity():
     # IF level has not yet been set THEN
     #   SET level to "warning".
     result = {}
+    severity = sarif_file_utils.read_result_severity(result, {})
+    assert severity == "warning"
+
+    result = {"ruleIndex": -1}
     severity = sarif_file_utils.read_result_severity(result, {})
     assert severity == "warning"
