@@ -138,12 +138,13 @@ def read_result_invocation(result, run):
     invocationIndex = result.get("provenance", {}).get("invocationIndex")
     if invocationIndex is None:
         return None
-    
-    if invocationIndex < 0:
-        return None
 
     invocations = run.get("invocations")
-    return invocations[invocationIndex]
+
+    if invocations and invocationIndex >= 0 and invocationIndex < len(invocations):
+        return invocations[invocationIndex]
+
+    return None
 
 
 def read_result_severity(result, run) -> Literal["none", "note", "warning", "error"]:

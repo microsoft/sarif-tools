@@ -83,6 +83,37 @@ def test_read_result_rule():
     assert ruleIndex == -1
 
 
+def test_read_result_invocation():
+    run = {"invocations": [
+             {"foo": 1},
+             {"bar": "baz"}
+           ]}
+
+    result = {}
+    invocation = sarif_file_utils.read_result_invocation(result, run)
+    assert invocation is None
+
+    result = {"provenance": {}}
+    invocation = sarif_file_utils.read_result_invocation(result, run)
+    assert invocation is None
+
+    result = {"provenance": {"invocationIndex": 0}}
+    invocation = sarif_file_utils.read_result_invocation(result, {})
+    assert invocation is None
+
+    result = {"provenance": {"invocationIndex": -1}}
+    invocation = sarif_file_utils.read_result_invocation(result, run)
+    assert invocation is None
+
+    result = {"provenance": {"invocationIndex": 2}}
+    invocation = sarif_file_utils.read_result_invocation(result, run)
+    assert invocation is None
+
+    result = {"provenance": {"invocationIndex": 1}}
+    invocation = sarif_file_utils.read_result_invocation(result, run)
+    assert invocation == run["invocations"][1]
+
+
 def test_read_result_severity():
     result = {"level": "error"}
     severity = sarif_file_utils.read_result_severity(result, {})
