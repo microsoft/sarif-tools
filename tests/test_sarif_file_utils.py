@@ -38,12 +38,16 @@ def test_combine_code_and_description_long_code():
 
 
 def test_read_result_rule():
-    run = {"tool":
-           {"driver":
-            {"rules": [
-                {"id": "id0", "defaultConfiguration": {"level": "none"}},
-                {"id": "id1", "defaultConfiguration": {"level": "error"}}
-             ]}}}
+    run = {
+        "tool": {
+            "driver": {
+                "rules": [
+                    {"id": "id0", "defaultConfiguration": {"level": "none"}},
+                    {"id": "id1", "defaultConfiguration": {"level": "error"}},
+                ]
+            }
+        }
+    }
     rule_id0 = run["tool"]["driver"]["rules"][0]
     rule_id1 = run["tool"]["driver"]["rules"][1]
 
@@ -57,7 +61,7 @@ def test_read_result_rule():
     assert rule == rule_id1
     assert ruleIndex == 1
 
-    result = {"rule": { "index": 1}}
+    result = {"rule": {"index": 1}}
     (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
     assert rule == rule_id1
     assert ruleIndex == 1
@@ -67,7 +71,7 @@ def test_read_result_rule():
     assert rule == rule_id1
     assert ruleIndex == 1
 
-    result = {"rule": { "id": "id1"}}
+    result = {"rule": {"id": "id1"}}
     (rule, ruleIndex) = sarif_file_utils.read_result_rule(result, run)
     assert rule == rule_id1
     assert ruleIndex == 1
@@ -84,10 +88,7 @@ def test_read_result_rule():
 
 
 def test_read_result_invocation():
-    run = {"invocations": [
-             {"foo": 1},
-             {"bar": "baz"}
-           ]}
+    run = {"invocations": [{"foo": 1}, {"bar": "baz"}]}
 
     result = {}
     invocation = sarif_file_utils.read_result_invocation(result, run)
@@ -124,19 +125,29 @@ def test_read_result_severity():
     severity = sarif_file_utils.read_result_severity(result, {})
     assert severity == "none"
 
-    run = {"invocations": [
-             {"ruleConfigurationOverrides": [ {"descriptor": {"id": "id1"}, "configuration": {"level": "note"}} ]},
-             {"ruleConfigurationOverrides": [ {"descriptor": {"index": 1}, "configuration": {"level": "note"}} ]},
-             { }
-           ],
-           "tool":
-             {"driver":
-               {"rules": [
-                 {"id": "id0", "defaultConfiguration": {"level": "none"}},
-                 {"id": "id1", "defaultConfiguration": {"level": "error"}}
-               ]}
-             }
-           }
+    run = {
+        "invocations": [
+            {
+                "ruleConfigurationOverrides": [
+                    {"descriptor": {"id": "id1"}, "configuration": {"level": "note"}}
+                ]
+            },
+            {
+                "ruleConfigurationOverrides": [
+                    {"descriptor": {"index": 1}, "configuration": {"level": "note"}}
+                ]
+            },
+            {},
+        ],
+        "tool": {
+            "driver": {
+                "rules": [
+                    {"id": "id0", "defaultConfiguration": {"level": "none"}},
+                    {"id": "id1", "defaultConfiguration": {"level": "error"}},
+                ]
+            }
+        },
+    }
 
     # If kind has the value "fail" and level is absent, then level SHALL be determined by the following procedure:
     # IF rule is present THEN
@@ -167,7 +178,7 @@ def test_read_result_severity():
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 
-    result = {"rule": { "index": 1}}
+    result = {"rule": {"index": 1}}
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 
@@ -175,7 +186,7 @@ def test_read_result_severity():
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 
-    result = {"rule": { "id": "id1"}}
+    result = {"rule": {"id": "id1"}}
     severity = sarif_file_utils.read_result_severity(result, run)
     assert severity == "error"
 

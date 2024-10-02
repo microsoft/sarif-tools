@@ -168,13 +168,15 @@ def read_result_severity(result, run) -> Literal["none", "note", "warning", "err
         # Honor the invocation's configuration override if present...
         invocation = read_result_invocation(result, run)
         if invocation:
-            ruleConfigurationOverrides = invocation.get("ruleConfigurationOverrides", [])
+            ruleConfigurationOverrides = invocation.get(
+                "ruleConfigurationOverrides", []
+            )
             override = next(
                 (
                     override
                     for override in ruleConfigurationOverrides
-                    if override.get("descriptor", {}).get("id") == rule.get("id") or
-                       override.get("descriptor", {}).get("index") == ruleIndex
+                    if override.get("descriptor", {}).get("id") == rule.get("id")
+                    or override.get("descriptor", {}).get("index") == ruleIndex
                 ),
                 None,
             )
