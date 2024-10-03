@@ -2,21 +2,12 @@ from sarif.cmdline.main import _check
 from sarif import sarif_file
 
 SARIF = {
-  "runs": [
-    {
-      "tool": {
-        "driver": {
-          "name": "Tool"
-        }
-      },
-      "results": [
+    "runs": [
         {
-          "level": "warning",
-          "ruleId": "rule"
+            "tool": {"driver": {"name": "Tool"}},
+            "results": [{"level": "warning", "ruleId": "rule"}],
         }
-      ]
-    }
-  ]
+    ]
 }
 
 
