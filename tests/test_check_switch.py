@@ -1,3 +1,4 @@
+import datetime
 from sarif.cmdline.main import _check
 from sarif import sarif_file
 
@@ -13,7 +14,9 @@ SARIF = {
 
 def test_check():
     fileSet = sarif_file.SarifFileSet()
-    fileSet.add_file(sarif_file.SarifFile("SARIF", SARIF))
+    fileSet.add_file(
+        sarif_file.SarifFile("SARIF", SARIF, mtime=datetime.datetime.now())
+    )
 
     result = _check(fileSet, "error")
     assert result == 0
