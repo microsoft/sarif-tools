@@ -1,5 +1,3 @@
-import datetime
-
 from sarif.cmdline.main import _check
 from sarif import sarif_file
 
@@ -30,4 +28,7 @@ def test_check():
     assert result == 0
 
     result = _check(fileSet, "warning")
+    assert result == 1
+
+    result = _check(fileSet, "note")
     assert result == 1
