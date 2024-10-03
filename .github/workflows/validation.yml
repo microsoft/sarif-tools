@@ -30,6 +30,13 @@ jobs:
       - name: Validate pyproject.toml and poetry.lock
         run: poetry check
 
+      - name: Validate code formatting
+        run: poetry run ruff format --check
+
+      - name: Validate code style
+        run: poetry run ruff check
+
+
   test:
     if: github.repository == 'microsoft/sarif-tools'
     runs-on: ubuntu-latest
