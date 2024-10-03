@@ -141,9 +141,7 @@ SARIF_WITH_ISSUES_REORDERED = {
 
 def test_diff_issues_reordered():
     mtime = datetime.datetime.now()
-    sarif = sarif_file.SarifFile(
-        "SARIF", SARIF, mtime=mtime
-    )
+    sarif = sarif_file.SarifFile("SARIF", SARIF, mtime=mtime)
     sarif_reordered = sarif_file.SarifFile(
         "SARIF_WITH_ISSUES_REORDERED", SARIF_WITH_ISSUES_REORDERED, mtime=mtime
     )

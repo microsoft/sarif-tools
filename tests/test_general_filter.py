@@ -1,5 +1,5 @@
 import pytest
-from sarif.filter.general_filter import GeneralFilter, PropertyFilter, load_filter_file
+from sarif.filter.general_filter import GeneralFilter, load_filter_file
 from sarif.filter.filter_stats import load_filter_stats_from_json
 
 
