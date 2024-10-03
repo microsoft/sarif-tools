@@ -113,14 +113,14 @@ def _run_git_blame_on_files(files_to_blame, repo_path):
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=repo_path) as proc:
             blame_info = {"commits": {}, "line_to_commit": {}}
             file_blame_info[file_path] = blame_info
-            reading_commit_headers = False
+            commit_hash: str | None = None
             for line_bytes in proc.stdout.readlines():
                 # Convert byte sequence to string and remove trailing LF
                 line_string = line_bytes.decode("utf-8")[:-1]
                 # Now parse output from git blame --porcelain
-                if reading_commit_headers:
+                if commit_hash:
                     if line_string.startswith("\t"):
-                        reading_commit_headers = False
+                        commit_hash = None
                         # Ignore line contents = source code
                     elif " " in line_string:
                         space_pos = line_string.index(" ")
@@ -137,7 +137,7 @@ def _run_git_blame_on_files(files_to_blame, repo_path):
                     commit_line = commit_line_info[2]
                     blame_info["commits"].setdefault(commit_hash, {})
                     blame_info["line_to_commit"][commit_line] = commit_hash
-                    reading_commit_headers = True
+
             # Ensure process terminates
             proc.communicate()
             if proc.returncode:

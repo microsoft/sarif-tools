@@ -32,7 +32,7 @@ def generate_summary(
                 output_file_name,
             )
             with open(output_file, "w", encoding="utf-8") as file_out:
-                file_out.writelines(l + "\n" for l in summary_lines)
+                file_out.writelines(line + "\n" for line in summary_lines)
         output_file_name = "static_analysis_summary.txt"
         output_file = os.path.join(output, output_file_name)
 
@@ -45,7 +45,7 @@ def generate_summary(
             output_file,
         )
         with open(output_file, "w", encoding="utf-8") as file_out:
-            file_out.writelines(l + "\n" for l in summary_lines)
+            file_out.writelines(line + "\n" for line in summary_lines)
     else:
         for lstr in summary_lines:
             print(lstr)
