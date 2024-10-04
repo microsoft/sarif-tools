@@ -477,21 +477,6 @@ class SarifFile:
         """
         return sum(run.get_result_count() for run in self.runs)
 
-    def get_result_count_by_severity(self, severities=None) -> Dict[str, int]:
-        """
-        Return a dict from SARIF severity to number of records.
-        """
-        severities = severities or self.get_severities()
-        result_count_by_severity_per_run = [
-            run.get_result_count_by_severity(severities) for run in self.runs
-        ]
-        return {
-            severity: sum(
-                rc.get(severity, 0) for rc in result_count_by_severity_per_run
-            )
-            for severity in severities
-        }
-
     def get_filter_stats(self) -> Optional[FilterStats]:
         """
         Get the number of records that were included or excluded by the filter.

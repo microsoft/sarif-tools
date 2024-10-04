@@ -226,9 +226,8 @@ def _create_arg_parser():
 def _check(input_files: sarif_file.SarifFileSet, check_level):
     ret = 0
     if check_level:
-        counts = input_files.get_result_count_by_severity()
         for severity in sarif_file.SARIF_SEVERITIES_WITH_NONE:
-            ret += counts.get(severity, 0)
+            ret += input_files.get_report().get_issue_count_for_severity(severity)
             if severity == check_level:
                 break
     if ret > 0:
