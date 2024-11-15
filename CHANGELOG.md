@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.4] - 2024-11-15
+
+- #73 Crash when using `--check`.
+
 ## [3.0.3] - 2024-09-30
 
 - #43 Support getting level from `ruleConfigurationOverrides` and `defaultConfiguration`.
@@ -35,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support "none" severity level.  It's only included in the output if present in the input.
+- Support "none" severity level. It's only included in the output if present in the input.
 
 ### Fixed
 
@@ -55,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking Changes
 
 - "Code" and "Description" are now separate columns in the CSV output, whereas before they were
-  combined in the "Code" column.  They are also separate keys in the "record" format if calling
+  combined in the "Code" column. They are also separate keys in the "record" format if calling
   sarif-tools from Python.
 - `--blame-filter` argument has been replaced with `--filter`, using a new YAML-based format for
   more general filtering to replace the previous ad hoc text format which only supported blame.
@@ -121,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Compatible with Python v3.8.  Previously, Python v3.9 was required.
+- Compatible with Python v3.8. Previously, Python v3.9 was required.
 
 ### Compatibility
 
