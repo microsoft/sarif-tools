@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 
-from sarif.operations import codeclimate_op
+from sarif.operations import csv_op
 from sarif import sarif_file
 
 INPUT_SARIF = {
@@ -34,23 +34,13 @@ INPUT_SARIF = {
 }
 
 
-EXPECTED_OUTPUT_JSON = [
-    {
-        "type": "issue",
-        "check_name": "CA2101",
-        "description": "CA2101",
-        "categories": ["Bug Risk"],
-        "location": {
-            "path": "file:///C:/Code/main.c",
-            "lines": {"begin": 24},
-        },
-        "severity": "major",
-        "fingerprint": "e972b812ed32bf29ee306141244050b9",
-    }
+EXPECTED_OUTPUT_CSV = [
+    "Tool,Severity,Code,Description,Location,Line",
+    "unit test,error,CA2101,CA2101,file:///C:/Code/main.c,24",
 ]
 
 
-def test_code_climate():
+def test_csv():
     mtime = datetime.datetime.now()
     input_sarif_file = sarif_file.SarifFile("INPUT_SARIF", INPUT_SARIF, mtime=mtime)
 
@@ -58,12 +48,12 @@ def test_code_climate():
     input_sarif_file_set.files.append(input_sarif_file)
 
     with tempfile.TemporaryDirectory() as tmp:
-        file_path = os.path.join(tmp, "codeclimate.json")
-        codeclimate_op.generate(
+        file_path = os.path.join(tmp, "output.csv")
+        csv_op.generate_csv(
             input_sarif_file_set, file_path, output_multiple_files=False
         )
 
         with open(file_path, "rb") as f_in:
-            output_json = json.load(f_in)
+            output_lines = f_in.read().decode().splitlines()
 
-        assert output_json == EXPECTED_OUTPUT_JSON
+        assert output_lines == EXPECTED_OUTPUT_CSV
