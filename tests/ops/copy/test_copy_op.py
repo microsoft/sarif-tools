@@ -5,7 +5,6 @@ import jsonschema
 import os
 import tempfile
 
-import sarif
 from sarif.operations import copy_op
 from sarif import sarif_file
 from tests.utils import get_sarif_schema
