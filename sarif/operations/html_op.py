@@ -5,6 +5,7 @@ Code for `sarif html` command.
 import base64
 from datetime import datetime
 import os
+from typing import Union
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -23,15 +24,14 @@ _ENV = Environment(
 
 def generate_html(
     input_files: sarif_file.SarifFileSet,
-    image_file: str,
+    image_file: Union[str, None],
     output: str,
     output_multiple_files: bool,
+    date_val: datetime = datetime.now(),
 ):
     """
     Generate HTML file from the input files.
     """
-    date_val = datetime.now()
-
     if image_file:
         image_mime_type = "image/" + os.path.splitext(image_file)[-1]
         if image_mime_type == "image/jpg":
