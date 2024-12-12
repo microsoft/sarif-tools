@@ -2,7 +2,7 @@ import datetime
 import os
 import tempfile
 
-from sarif.operations import csv_op
+from sarif.operations import emacs_op
 from sarif import sarif_file
 
 INPUT_SARIF = {
@@ -33,13 +33,28 @@ INPUT_SARIF = {
 }
 
 
-EXPECTED_OUTPUT_CSV = [
-    "Tool,Severity,Code,Description,Location,Line",
-    "unit test,error,CA2101,CA2101,file:///C:/Code/main.c,24",
-]
+EXPECTED_OUTPUT_TXT = """-*- compilation -*-
+
+Sarif Summary: unit test
+Document generated on: <date_val>
+Total number of distinct issues of all severities (error, warning, note): 1
 
 
-def test_csv():
+
+Severity : error [1]
+file:///C:/Code/main.c:24: CA2101
+
+
+
+Severity : warning [0]
+
+
+Severity : note [0]
+
+"""
+
+
+def test_emacs():
     mtime = datetime.datetime.now()
     input_sarif_file = sarif_file.SarifFile("INPUT_SARIF", INPUT_SARIF, mtime=mtime)
 
@@ -48,11 +63,13 @@ def test_csv():
 
     with tempfile.TemporaryDirectory() as tmp:
         file_path = os.path.join(tmp, "output.csv")
-        csv_op.generate_csv(
-            input_sarif_file_set, file_path, output_multiple_files=False
+        emacs_op.generate_compile(
+            input_sarif_file_set, file_path, output_multiple_files=False, date_val=mtime
         )
 
         with open(file_path, "rb") as f_in:
-            output_lines = f_in.read().decode().splitlines()
+            output = f_in.read().decode()
 
-        assert output_lines == EXPECTED_OUTPUT_CSV
+        assert output == EXPECTED_OUTPUT_TXT.replace("\n", os.linesep).replace(
+            "<date_val>", mtime.strftime("%Y-%m-%d %H:%M:%S.%f")
+        )
