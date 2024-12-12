@@ -62,7 +62,7 @@ def test_emacs():
     input_sarif_file_set.files.append(input_sarif_file)
 
     with tempfile.TemporaryDirectory() as tmp:
-        file_path = os.path.join(tmp, "output.csv")
+        file_path = os.path.join(tmp, "output.txt")
         emacs_op.generate_compile(
             input_sarif_file_set, file_path, output_multiple_files=False, date_val=mtime
         )

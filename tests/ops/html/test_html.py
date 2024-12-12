@@ -168,7 +168,7 @@ def test_html():
     input_sarif_file_set.files.append(input_sarif_file)
 
     with tempfile.TemporaryDirectory() as tmp:
-        file_path = os.path.join(tmp, "output.csv")
+        file_path = os.path.join(tmp, "output.html")
         html_op.generate_html(
             input_sarif_file_set,
             None,
