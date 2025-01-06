@@ -36,7 +36,7 @@ INPUT_SARIF = """{
 
 EXPECTED_OUTPUT_TXT = """<path>
   840 bytes (1 KiB)
-  modified: <time>, accessed: <time>, ctime: <time>
+  modified: <mtime>, accessed: <atime>, ctime: <ctime>
   1 run
     Tool: unit test
     1 result
@@ -50,7 +50,16 @@ def test_info():
         with open(input_sarif_file_path, "wb") as f_in:
             f_in.write(INPUT_SARIF.encode())
 
-        mtime = datetime.datetime.fromtimestamp(os.stat(input_sarif_file_path).st_mtime)
+        stat = os.stat(input_sarif_file_path)
+        stat_mtime = datetime.datetime.fromtimestamp(stat.st_mtime).strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )
+        stat_atime = datetime.datetime.fromtimestamp(stat.st_atime).strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )
+        stat_ctime = datetime.datetime.fromtimestamp(stat.st_ctime).strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )
 
         input_sarif = json.loads(INPUT_SARIF)
 
@@ -70,6 +79,12 @@ def test_info():
         assert output == EXPECTED_OUTPUT_TXT.replace("\n", os.linesep).replace(
             "<path>", input_sarif_file_path
         ).replace(
-            "<time>",
-            mtime.strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "<mtime>",
+            stat_mtime,
+        ).replace(
+            "<atime>",
+            stat_atime,
+        ).replace(
+            "<ctime>",
+            stat_ctime,
         )
