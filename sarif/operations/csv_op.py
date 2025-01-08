@@ -49,10 +49,11 @@ def _write_to_csv(file_or_files, output_file):
     """
     list_of_errors = file_or_files.get_records()
     severities = file_or_files.get_severities()
-    # newline="" to avoid \r\r\n - see https://stackoverflow.com/a/3191811/316578
-    with open(output_file, "w", encoding="utf-8", newline="") as file_out:
+    with open(output_file, "w", encoding="utf-8") as file_out:
         writer = csv.DictWriter(
-            file_out, sarif_file.get_record_headings(file_or_files.has_blame_info())
+            file_out,
+            sarif_file.get_record_headings(file_or_files.has_blame_info()),
+            lineterminator="\n",
         )
         writer.writeheader()
         for severity in severities:
