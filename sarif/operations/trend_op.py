@@ -69,8 +69,10 @@ def generate_trend_csv(
 
 def _write_csv(output_file: str, error_storage: List[Dict]) -> None:
     # newline="" to avoid \r\r\n - see https://stackoverflow.com/a/3191811/316578
-    with open(output_file, "w", newline="", encoding="utf-8") as file_out:
-        writer = csv.DictWriter(file_out, TIMESTAMP_COLUMNS, extrasaction="ignore")
+    with open(output_file, "w", encoding="utf-8") as file_out:
+        writer = csv.DictWriter(
+            file_out, TIMESTAMP_COLUMNS, extrasaction="ignore", lineterminator="\n"
+        )
         writer.writeheader()
         for key in error_storage:
             writer.writerow(key)
