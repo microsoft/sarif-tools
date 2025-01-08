@@ -49,7 +49,6 @@ def _write_to_csv(file_or_files, output_file):
     """
     list_of_errors = file_or_files.get_records()
     severities = file_or_files.get_severities()
-    # newline="" to avoid \r\r\n - see https://stackoverflow.com/a/3191811/316578
     with open(output_file, "w", encoding="utf-8") as file_out:
         writer = csv.DictWriter(
             file_out,
