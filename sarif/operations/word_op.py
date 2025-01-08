@@ -10,6 +10,7 @@ https://python-docx.readthedocs.io/
 
 from datetime import datetime
 import os
+from typing import Union
 
 import docx
 from docx import oxml
@@ -23,9 +24,10 @@ from sarif.sarif_file_utils import combine_record_code_and_description
 
 def generate_word_docs_from_sarif_inputs(
     input_files: sarif_file.SarifFileSet,
-    image_file: str,
+    image_file: Union[str, None],
     output: str,
     output_multiple_files: bool,
+    date_val: datetime = datetime.now(),
 ):
     """
     Convert SARIF input to Word file output.
@@ -50,6 +52,7 @@ def generate_word_docs_from_sarif_inputs(
                 report,
                 os.path.join(output, output_file_name),
                 image_file,
+                date_val,
             )
         output_file_name = "static_analysis_output.docx"
         output_file = os.path.join(output, output_file_name)
@@ -57,16 +60,18 @@ def generate_word_docs_from_sarif_inputs(
     source_description = input_files.get_description()
     print("Writing Word summary of", source_description, "to", output_file_name)
     report = input_files.get_report()
-    _generate_word_summary(input_files, report, output_file, image_file)
+    _generate_word_summary(input_files, report, output_file, image_file, date_val)
 
 
-def _generate_word_summary(sarif_data, report, output_file, image_file):
+def _generate_word_summary(
+    sarif_data, report, output_file, image_file: Union[str, None], date_val: datetime
+):
     # Create a new document
     document = docx.Document()
 
     severities = report.get_severities()
     _add_heading_and_highlevel_info(
-        document, sarif_data, report, severities, output_file, image_file
+        document, sarif_data, report, severities, output_file, image_file, date_val
     )
     _dump_errors_summary_by_sev(document, report, severities)
     _dump_each_error_in_detail(document, report, severities)
@@ -76,7 +81,13 @@ def _generate_word_summary(sarif_data, report, output_file, image_file):
 
 
 def _add_heading_and_highlevel_info(
-    document, sarif_data, report, severities, output_file, image_path
+    document,
+    sarif_data,
+    report,
+    severities,
+    output_file,
+    image_path: Union[str, None],
+    date_val: datetime,
 ):
     tool_name = ", ".join(sarif_data.get_distinct_tool_names())
     heading = f"Sarif Summary: {tool_name}"
@@ -87,7 +98,7 @@ def _add_heading_and_highlevel_info(
         last_paragraph.alignment = text.WD_PARAGRAPH_ALIGNMENT.CENTER
 
     document.add_heading(heading, 0)
-    document.add_paragraph(f"Document generated on: {datetime.now()}")
+    document.add_paragraph(f"Document generated on: {date_val}")
 
     sevs = ", ".join(severities)
     document.add_paragraph(

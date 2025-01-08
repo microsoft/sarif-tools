@@ -5,6 +5,8 @@ Code for `sarif info` command.
 import datetime
 import os
 
+from sarif.sarif_file import SarifFileSet
+
 _BYTES_PER_MIB = 1024 * 1024
 _BYTES_PER_KIB = 1024
 
@@ -103,7 +105,7 @@ def _generate_info_to_file(sarif_files, file_out):
     return file_count
 
 
-def generate_info(sarif_files, output):
+def generate_info(sarif_files: SarifFileSet, output: str):
     """
     Print structure information about the provided `sarif_files`.
     """

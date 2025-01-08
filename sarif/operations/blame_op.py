@@ -6,14 +6,38 @@ import json
 import os
 import subprocess
 import sys
+from typing import Callable, Iterable, List, Union
 import urllib.parse
 import urllib.request
 
 from sarif.sarif_file import SarifFileSet
 
 
+def _run_git_blame(repo_path: str, file_path: str) -> List[bytes]:
+    cmd = ["git", "blame", "--porcelain", _make_path_git_compatible(file_path)]
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=repo_path) as proc:
+        result = []
+        if proc.stdout:
+            result = [x for x in proc.stdout.readlines()]
+
+        # Ensure process terminates
+        proc.communicate()
+        if proc.returncode:
+            cmd_str = " ".join(cmd)
+            sys.stderr.write(
+                f"WARNING: Command `{cmd_str} "
+                f"failed with exit code {proc.returncode} in {repo_path}\n"
+            )
+
+        return result
+
+
 def enhance_with_blame(
-    input_files: SarifFileSet, repo_path: str, output: str, output_multiple_files: bool
+    input_files: SarifFileSet,
+    repo_path: str,
+    output: str,
+    output_multiple_files: bool,
+    run_git_blame: Callable[[str, str], List[bytes]] = _run_git_blame,
 ):
     """
     Enhance SARIF files with information from `git blame`.  The `git` command is run in the current
@@ -26,7 +50,7 @@ def enhance_with_blame(
     if not os.path.isdir(repo_path):
         raise ValueError(f"No git repository directory found at {repo_path}")
 
-    _enhance_with_blame(input_files, repo_path)
+    _enhance_with_blame(input_files, repo_path, run_git_blame)
 
     for input_file in input_files:
         input_file_name = input_file.get_file_name()
@@ -57,7 +81,11 @@ def enhance_with_blame(
             )
 
 
-def _enhance_with_blame(input_files, repo_path):
+def _enhance_with_blame(
+    input_files: SarifFileSet,
+    repo_path: str,
+    run_git_blame: Callable[[str, str], List[bytes]],
+):
     """
     Run `git blame --porcelain` for each file path listed in input_files.
     Then enhance the results in error_list by adding a "blame" property including "hash", "author"
@@ -73,7 +101,7 @@ def _enhance_with_blame(input_files, repo_path):
         "in",
         repo_path,
     )
-    file_blame_info = _run_git_blame_on_files(files_to_blame, repo_path)
+    file_blame_info = _run_git_blame_on_files(files_to_blame, repo_path, run_git_blame)
 
     # Now join up blame output with result list
     blame_info_count = 0
@@ -106,44 +134,40 @@ def _make_path_git_compatible(file_path):
         return file_path
 
 
-def _run_git_blame_on_files(files_to_blame, repo_path):
+def _run_git_blame_on_files(
+    files_to_blame: Iterable[str],
+    repo_path: str,
+    run_git_blame: Callable[[str, str], List[bytes]],
+):
     file_blame_info = {}
     for file_path in files_to_blame:
-        cmd = ["git", "blame", "--porcelain", _make_path_git_compatible(file_path)]
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=repo_path) as proc:
-            blame_info = {"commits": {}, "line_to_commit": {}}
-            file_blame_info[file_path] = blame_info
-            commit_hash: str | None = None
-            for line_bytes in proc.stdout.readlines():
-                # Convert byte sequence to string and remove trailing LF
-                line_string = line_bytes.decode("utf-8")[:-1]
-                # Now parse output from git blame --porcelain
-                if commit_hash:
-                    if line_string.startswith("\t"):
-                        commit_hash = None
-                        # Ignore line contents = source code
-                    elif " " in line_string:
-                        space_pos = line_string.index(" ")
-                        key = line_string[0:space_pos]
-                        value = line_string[space_pos + 1 :].strip()
-                        blame_info["commits"][commit_hash][key] = value
-                    else:
-                        # e.g. "boundary"
-                        key = line_string
-                        blame_info["commits"][commit_hash][key] = True
-                else:
-                    commit_line_info = line_string.split(" ")
-                    commit_hash = commit_line_info[0]
-                    commit_line = commit_line_info[2]
-                    blame_info["commits"].setdefault(commit_hash, {})
-                    blame_info["line_to_commit"][commit_line] = commit_hash
+        git_blame_output = run_git_blame(repo_path, file_path)
+        blame_info = {"commits": {}, "line_to_commit": {}}
+        file_blame_info[file_path] = blame_info
+        commit_hash: Union[str, None] = None
 
-            # Ensure process terminates
-            proc.communicate()
-            if proc.returncode:
-                cmd_str = " ".join(cmd)
-                sys.stderr.write(
-                    f"WARNING: Command `{cmd_str} "
-                    f"failed with exit code {proc.returncode} in {repo_path}\n"
-                )
+        for line_bytes in git_blame_output:
+            # Convert byte sequence to string and remove trailing LF
+            line_string = line_bytes.decode("utf-8")[:-1]
+            # Now parse output from git blame --porcelain
+            if commit_hash:
+                if line_string.startswith("\t"):
+                    commit_hash = None
+                    # Ignore line contents = source code
+                elif " " in line_string:
+                    space_pos = line_string.index(" ")
+                    key = line_string[0:space_pos]
+                    value = line_string[space_pos + 1 :].strip()
+                    blame_info["commits"][commit_hash][key] = value
+                else:
+                    # e.g. "boundary"
+                    key = line_string
+                    blame_info["commits"][commit_hash][key] = True
+            else:
+                commit_line_info = line_string.split(" ")
+                commit_hash = commit_line_info[0]
+                commit_line = commit_line_info[2]
+                blame_info["commits"].setdefault(commit_hash, {})
+                blame_info["line_to_commit"][commit_line] = commit_hash
+
     return file_blame_info

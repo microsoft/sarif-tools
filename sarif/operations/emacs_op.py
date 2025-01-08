@@ -20,13 +20,14 @@ _ENV = Environment(
 
 
 def generate_compile(
-    input_files: sarif_file.SarifFileSet, output: str, output_multiple_files: bool
+    input_files: sarif_file.SarifFileSet,
+    output: str,
+    output_multiple_files: bool,
+    date_val: datetime = datetime.now(),
 ):
     """
     Generate txt file from the input files.
     """
-    date_val = datetime.now()
-
     output_file = output
     if output_multiple_files:
         for input_file in input_files:
