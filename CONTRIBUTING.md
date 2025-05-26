@@ -54,8 +54,8 @@ To check that the right versions are being run:
 
 ```bash
 poetry run python --version
-poetry run sarif --version
-poetry run python -m sarif --version
+poetry run sarif --version --debug
+poetry run python -m sarif --version --debug
 ```
 
 To see which executable is being run:

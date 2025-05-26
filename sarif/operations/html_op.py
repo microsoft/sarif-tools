@@ -9,8 +9,7 @@ from typing import Union
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from sarif import charts
-from sarif import sarif_file
+from sarif import charts, sarif_file
 
 _THIS_MODULE_PATH = os.path.dirname(__file__)
 
@@ -90,7 +89,7 @@ def _generate_single_html(
         total_distinct_issue_codes += distinct_issue_codes
 
         severity_details = _enrich_details(
-            report.get_issues_grouped_by_type_for_severity(severity)
+            report.get_issues_grouped_by_type_for_severity(severity), input_file
         )
 
         severity_section = {
@@ -129,8 +128,30 @@ def _generate_single_html(
         file_out.write(html_content)
 
 
-def _enrich_details(records_of_severity):
-    return [
-        {"code": key, "count": len(records), "details": records}
-        for (key, records) in records_of_severity.items()
-    ]
+def _extract_help_links_from_rules(rules, link_to_desc, key):
+    for rule in rules:
+        if "helpUri" in rule:
+            uri = rule["helpUri"]
+            if uri not in link_to_desc:
+                desc = rule.get("fullDescription", {}).get("text")
+                if not desc:
+                    desc = rule.get("name")
+                if not desc:
+                    desc = key
+                link_to_desc[uri] = desc
+
+
+def _enrich_details(records_of_severity, input_file):
+    ret = []
+
+    for (key, records) in records_of_severity.items():
+        link_to_desc = {}
+        for record in records:
+            rule_id = record["Code"]
+            rules = input_file.get_rules_by_id(rule_id)
+            _extract_help_links_from_rules(rules, link_to_desc, key)
+        links = [(desc, uri) for (uri, desc) in link_to_desc.items()]
+        ret.append(
+            {"code": key, "count": len(records), "links": links, "details": records}
+        )
+    return ret

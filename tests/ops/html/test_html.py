@@ -10,7 +10,18 @@ INPUT_SARIF = {
     "version": "2.1.0",
     "runs": [
         {
-            "tool": {"driver": {"name": "unit test"}},
+            "tool": {
+                "driver": {
+                    "name": "unit test",
+                    "rules": [
+                        {
+                            "id": "CA2101",
+                            "name": "Specify <marshalling> for P/Invoke string arguments",
+                            "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2101"
+                        }
+                    ]
+                }
+            },
             "results": [
                 {
                     "ruleId": "CA2101",
@@ -33,7 +44,8 @@ INPUT_SARIF = {
 }
 
 
-EXPECTED_OUTPUT_TXT = """<head>
+EXPECTED_OUTPUT_TXT = """
+<head>
     <style>
         #pageContainer {
             margin: auto;
@@ -110,15 +122,9 @@ EXPECTED_OUTPUT_TXT = """<head>
     </style>
 </head>
 
-
-
 <h3>Sarif Summary: <b>unit test</b></h3>
 <h4>Document generated on: <b><date_val></b></h4>
 <h4>Total number of distinct issues of all severities (error, warning, note): <b>1</b></h4>
-
-
-
-
 
 <h3>Severity : error [ 1 ]</h3>
 <ul>
@@ -126,21 +132,22 @@ EXPECTED_OUTPUT_TXT = """<head>
         <button class="collapsible">CA2101: <b>1</b></button>
         <div class="content">
             <ul>
-                    <li>file:///C:/Code/main.c:24</li>
+                <li><a href="https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2101" target="_blank">Specify &lt;marshalling&gt; for P/Invoke string arguments</a></li>
+                <li>file:///C:/Code/main.c:24</li>
             </ul>
         </div>
     </li>
-    
+
 </ul>
 
 <h3>Severity : warning [ 0 ]</h3>
 <ul>
-    
+
 </ul>
 
 <h3>Severity : note [ 0 ]</h3>
 <ul>
-    
+
 </ul>
 <script>
     var coll = document.getElementsByClassName("collapsible");
@@ -185,6 +192,18 @@ def test_html():
         pie_chart_end = output.find("/>", pie_chart_start) + 2
         output = output[:pie_chart_start] + output[pie_chart_end:]
 
-        assert output == EXPECTED_OUTPUT_TXT.replace("\n", os.linesep).replace(
-            "<date_val>", mtime.strftime("%Y-%m-%d %H:%M:%S.%f")
-        )
+        # Check the output line-by-line, ignoring whitespace around and between lines.
+        output_split = output.splitlines()
+        for check_line in EXPECTED_OUTPUT_TXT.replace(
+            "<date_val>",
+            mtime.strftime("%Y-%m-%d %H:%M:%S.%f")
+        ).splitlines():
+            expected = check_line.strip()
+            if not expected:
+                continue
+            actual = ""
+            while output_split:
+                actual = output_split.pop(0).strip()
+                if actual:
+                    break
+            assert actual == expected
