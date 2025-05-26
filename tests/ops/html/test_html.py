@@ -17,9 +17,9 @@ INPUT_SARIF = {
                         {
                             "id": "CA2101",
                             "name": "Specify <marshalling> for P/Invoke string arguments",
-                            "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2101"
+                            "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2101",
                         }
-                    ]
+                    ],
                 }
             },
             "results": [
@@ -195,8 +195,7 @@ def test_html():
         # Check the output line-by-line, ignoring whitespace around and between lines.
         output_split = output.splitlines()
         for check_line in EXPECTED_OUTPUT_TXT.replace(
-            "<date_val>",
-            mtime.strftime("%Y-%m-%d %H:%M:%S.%f")
+            "<date_val>", mtime.strftime("%Y-%m-%d %H:%M:%S.%f")
         ).splitlines():
             expected = check_line.strip()
             if not expected:

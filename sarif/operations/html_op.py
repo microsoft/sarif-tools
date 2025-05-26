@@ -144,7 +144,7 @@ def _extract_help_links_from_rules(rules, link_to_desc, key):
 def _enrich_details(records_of_severity, input_file):
     ret = []
 
-    for (key, records) in records_of_severity.items():
+    for key, records in records_of_severity.items():
         link_to_desc = {}
         for record in records:
             rule_id = record["Code"]
