@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: echo "releaseVersion=$(poetry version --short)" >> $GITHUB_OUTPUT
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: wheel
           path: dist/sarif_tools-${{ steps.get_version.outputs.releaseVersion }}-py3-none-any.whl
