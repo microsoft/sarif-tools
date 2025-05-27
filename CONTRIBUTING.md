@@ -19,7 +19,7 @@ Pull requests are welcome.
 
 1. Fork the repository.
 2. Make and test your changes (see Developer Guide below).
-3. Run `poetry run black sarif` to format the code.
+3. Run `poetry run ruff format` and `poetry run black sarif` to format the code.
 4. Run `poetry run pylint sarif` and check for no new errors or warnings.
 5. Raise Pull Request in GitHub.com.
 
@@ -54,8 +54,8 @@ To check that the right versions are being run:
 
 ```bash
 poetry run python --version
-poetry run sarif --version
-poetry run python -m sarif --version
+poetry run sarif --version --debug
+poetry run python -m sarif --version --debug
 ```
 
 To see which executable is being run:

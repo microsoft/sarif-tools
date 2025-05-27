@@ -193,6 +193,19 @@ class SarifRun:
             )
         return None
 
+    def get_rules_by_id(self, rule_id: str) -> List[Dict]:
+        """
+        Get the sarif rule for the given ID, if it exists in this run.
+        """
+        ret = []
+        rule_id = rule_id.strip()
+        if not rule_id:
+            return ret
+        for rule in self.run_data.get("tool", {}).get("driver", {}).get("rules", []):
+            if rule.get("id", "") == rule_id:
+                ret.append(rule)
+        return ret
+
     def get_results(self) -> List[Dict]:
         """
         Get the results from this run.  These are the Result objects as defined in the SARIF
@@ -443,6 +456,15 @@ class SarifFile:
         """
         return sorted(list(set(run.get_tool_name() for run in self.runs)))
 
+    def get_rules_by_id(self, rule_id: str) -> List[Dict]:
+        """
+        Get the sarif rule(s) for the given ID.
+        """
+        ret = []
+        for run in self.runs:
+            ret.extend(run.get_rules_by_id(rule_id))
+        return ret
+
     def get_results(self) -> List[Dict]:
         """
         Get the results from all runs in this file.  These are the Result objects as defined in the
@@ -624,6 +646,17 @@ class SarifFileSet:
             all_tool_names.update(input_file.get_distinct_tool_names())
 
         return sorted(list(all_tool_names))
+
+    def get_rules_by_id(self, rule_id: str) -> List[Dict]:
+        """
+        Get the sarif rule(s) for the given ID.
+        """
+        ret = []
+        for subdir in self.subdirs:
+            ret.extend(subdir.get_rules_by_id(rule_id))
+        for input_file in self.files:
+            ret.extend(input_file.get_rules_by_id(rule_id))
+        return ret
 
     def get_results(self) -> List[Dict]:
         """

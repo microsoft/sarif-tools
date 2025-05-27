@@ -676,7 +676,7 @@ The data in each `result` object can then be used for filtering via the `--filte
 
 ```yaml
 # Lines beginning with # are interpreted as comments and ignored.
-# Optional description for the filter.  If no title is specified, the filter file name is used.
+# Optional description for the filter.  If not specified, the filter file name is used.
 description: Example filter from README.md
 
 # Optional configuration section to override default values.

@@ -101,24 +101,27 @@
 {% for problem in problems %}
 <h3>Severity : {{ problem.type }} [ {{ problem.count }} ]</h3>
 <ul>
-    {% for error in problem.details -%}
+    {%- for error in problem.details %}
     <li>
         <button class="collapsible">{{- error.code }}: <b>{{ error.count -}}</b></button>
         <div class="content">
             <ul>
-                {%- for line in error.details -%}
-                  {%- if line.Location %}
-                    <li>{{ line.Location }}:{{ line.Line }}</li>
-                  {%- else %}
-                    <li>{{ line.Description }}</li>
-                  {%- endif %}
-                {%- endfor %}
+            {%- for link in error.links %}
+                <li><a href="{{ link.1 }}" target="_blank">{{ link.0 }}</a></li>
+            {%- endfor %}
+            {%- for line in error.details %}
+                {%- if line.Location %}
+                <li>{{ line.Location }}:{{ line.Line }}</li>
+                {%- else %}
+                <li>{{ line.Description }}</li>
+                {%- endif %}
+            {%- endfor %}
             </ul>
         </div>
     </li>
-    {% endfor %}
+    {%- endfor %}
 </ul>
-{% endfor -%}
+{%- endfor %}
 
 <script>
     var coll = document.getElementsByClassName("collapsible");
