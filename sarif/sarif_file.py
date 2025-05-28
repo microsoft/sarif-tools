@@ -143,7 +143,15 @@ class SarifRun:
                     if not common_prefix:
                         break
                 if common_prefix:
-                    autotrim_prefix = common_prefix.upper()
+                    # Ensure the prefix ends at a directory boundary
+                    # Find the last slash in the common prefix
+                    last_slash_pos = max(common_prefix.rfind(slash) for slash in _SLASHES)
+                    if last_slash_pos > -1:
+                        # Include the slash in the prefix so it gets stripped properly
+                        autotrim_prefix = common_prefix[0:last_slash_pos + 1].upper()
+                    else:
+                        # No slash found, don't use autotrim for this case
+                        autotrim_prefix = None
             if autotrim_prefix and not any(
                 p.startswith(autotrim_prefix.strip().upper()) for p in prefixes
             ):
