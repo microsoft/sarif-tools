@@ -148,7 +148,7 @@ def _run_git_blame_on_files(
 
         for line_bytes in git_blame_output:
             # Convert byte sequence to string and remove trailing LF
-            line_string = line_bytes.decode("utf-8")[:-1]
+            line_string = line_bytes.decode("utf-8", errors="replace")[:-1]
             # Now parse output from git blame --porcelain
             if commit_hash:
                 if line_string.startswith("\t"):
