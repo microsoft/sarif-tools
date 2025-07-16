@@ -110,7 +110,10 @@ def test_blame_no_blame_info():
         assert not os.path.isfile(output_file_path)
 
 
-def blame_test(run_git_blame: Callable[[str, str], List[bytes]], expected_blame_properties: dict[str, dict[str, str]]):
+def blame_test(
+    run_git_blame: Callable[[str, str], List[bytes]],
+    expected_blame_properties: dict[str, dict[str, str]],
+):
     input_sarif_file = sarif_file.SarifFile(
         "SARIF_FILE", SARIF_FILE, mtime=datetime.datetime.now()
     )
@@ -122,7 +125,9 @@ def blame_test(run_git_blame: Callable[[str, str], List[bytes]], expected_blame_
         os.makedirs(repo_path)
         output_file_path = os.path.join(tmp, "blamed.json")
 
-        def run_git_blame_wrapper(blame_repo_path: str, blame_file_path: str) -> List[bytes]:
+        def run_git_blame_wrapper(
+            blame_repo_path: str, blame_file_path: str
+        ) -> List[bytes]:
             assert blame_repo_path == repo_path
             assert blame_file_path == ERROR_FILE_ABSOLUTE_PATH
             return run_git_blame(blame_repo_path, blame_file_path)
@@ -140,7 +145,9 @@ def blame_test(run_git_blame: Callable[[str, str], List[bytes]], expected_blame_
         jsonschema.validate(output_sarif, schema=get_sarif_schema())
 
         expected_sarif = deepcopy(input_sarif_file.data)
-        expected_sarif["runs"][0]["results"][0]["properties"] = expected_blame_properties
+        expected_sarif["runs"][0]["results"][0]["properties"] = (
+            expected_blame_properties
+        )
         assert output_sarif == expected_sarif
 
 
@@ -183,7 +190,9 @@ GIT_BLAME_OUTPUT_WITH_INVALID_UTF8 = [
     b"\tFile text line 2\n",
     b"f9db03438aba52affc5c3fcdb619afa620ad603a 3 3\n",
     b"\tFile text line 3\n",
-    b"eec0471db074a037d820abdda1f210f8a8c987ca 4 4 1\n"]
+    b"eec0471db074a037d820abdda1f210f8a8c987ca 4 4 1\n",
+]
+
 
 def test_blame_invalid_utf8():
     def run_git_blame(blame_repo_path: str, blame_file_path: str) -> List[bytes]:
