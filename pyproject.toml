@@ -18,7 +18,7 @@ classifiers = [
 "Bug Tracker" = "https://github.com/microsoft/sarif-tools/issues"
 
 [tool.poetry.dependencies]
-jinja2 = "^3.1.4"
+jinja2 = "^3.1.6"
 jsonpath-ng = "^1.6.0"
 matplotlib = "^3.7"  # Need Python 3.9+ for newer
 python = "^3.8"
