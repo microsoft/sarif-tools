@@ -4,7 +4,7 @@ import json
 import jsonschema
 import os
 import tempfile
-from typing import List
+from typing import Callable, List
 
 from sarif.operations import blame_op
 from sarif import sarif_file
@@ -110,7 +110,7 @@ def test_blame_no_blame_info():
         assert not os.path.isfile(output_file_path)
 
 
-def test_blame_success():
+def blame_test(run_git_blame: Callable[[str, str], List[bytes]], expected_blame_properties: dict[str, dict[str, str]]):
     input_sarif_file = sarif_file.SarifFile(
         "SARIF_FILE", SARIF_FILE, mtime=datetime.datetime.now()
     )
@@ -122,17 +122,17 @@ def test_blame_success():
         os.makedirs(repo_path)
         output_file_path = os.path.join(tmp, "blamed.json")
 
-        def run_git_blame(blame_repo_path: str, blame_file_path: str) -> List[bytes]:
+        def run_git_blame_wrapper(blame_repo_path: str, blame_file_path: str) -> List[bytes]:
             assert blame_repo_path == repo_path
             assert blame_file_path == ERROR_FILE_ABSOLUTE_PATH
-            return [x.encode() for x in GIT_BLAME_OUTPUT]
+            return run_git_blame(blame_repo_path, blame_file_path)
 
         blame_op.enhance_with_blame(
             input_sarif_file_set,
             repo_path,
             output_file_path,
             output_multiple_files=False,
-            run_git_blame=run_git_blame,
+            run_git_blame=run_git_blame_wrapper,
         )
 
         with open(output_file_path, "rb") as f_out:
@@ -140,19 +140,68 @@ def test_blame_success():
         jsonschema.validate(output_sarif, schema=get_sarif_schema())
 
         expected_sarif = deepcopy(input_sarif_file.data)
-        blame_properties = {
-            "blame": {
-                "author": "Taylor Developer",
-                "author-mail": "<taylor@developer.com>",
-                "author-time": "1699272533",
-                "author-tz": "+0000",
-                "committer": "GitHub",
-                "committer-mail": "<noreply@github.com>",
-                "committer-time": "1699272533",
-                "committer-tz": "+0000",
-                "summary": "Commit message 1",
-                "filename": ERROR_FILE_RELATIVE_PATH,
-            }
-        }
-        expected_sarif["runs"][0]["results"][0]["properties"] = blame_properties
+        expected_sarif["runs"][0]["results"][0]["properties"] = expected_blame_properties
         assert output_sarif == expected_sarif
+
+
+def test_blame_success():
+    def run_git_blame(blame_repo_path: str, blame_file_path: str) -> List[bytes]:
+        return [x.encode() for x in GIT_BLAME_OUTPUT]
+
+    expected_blame_properties = {
+        "blame": {
+            "author": "Taylor Developer",
+            "author-mail": "<taylor@developer.com>",
+            "author-time": "1699272533",
+            "author-tz": "+0000",
+            "committer": "GitHub",
+            "committer-mail": "<noreply@github.com>",
+            "committer-time": "1699272533",
+            "committer-tz": "+0000",
+            "summary": "Commit message 1",
+            "filename": ERROR_FILE_RELATIVE_PATH,
+        }
+    }
+
+    blame_test(run_git_blame, expected_blame_properties)
+
+
+GIT_BLAME_OUTPUT_WITH_INVALID_UTF8 = [
+    b"f9db03438aba52affc5c3fcdb619afa620ad603a 1 1 7\n",
+    b"author Taylor Developer\n",
+    b"author-mail <taylor@developer.com>\n",
+    b"author-time 1699272533\n",
+    b"author-tz +0000\n",
+    b"committer GitHub\n",
+    b"committer-mail <noreply@github.com>\n",
+    b"committer-time 1699272533\n",
+    b"committer-tz +0000\n",
+    b"summary Commit message \x80\n",
+    b"filename " + ERROR_FILE_RELATIVE_PATH.encode() + b"\n",
+    b"\tFile text line 1\n",
+    b"f9db03438aba52affc5c3fcdb619afa620ad603a 2 2\n",
+    b"\tFile text line 2\n",
+    b"f9db03438aba52affc5c3fcdb619afa620ad603a 3 3\n",
+    b"\tFile text line 3\n",
+    b"eec0471db074a037d820abdda1f210f8a8c987ca 4 4 1\n"]
+
+def test_blame_invalid_utf8():
+    def run_git_blame(blame_repo_path: str, blame_file_path: str) -> List[bytes]:
+        return GIT_BLAME_OUTPUT_WITH_INVALID_UTF8
+
+    expected_blame_properties = {
+        "blame": {
+            "author": "Taylor Developer",
+            "author-mail": "<taylor@developer.com>",
+            "author-time": "1699272533",
+            "author-tz": "+0000",
+            "committer": "GitHub",
+            "committer-mail": "<noreply@github.com>",
+            "committer-time": "1699272533",
+            "committer-tz": "+0000",
+            "summary": "Commit message �",
+            "filename": ERROR_FILE_RELATIVE_PATH,
+        }
+    }
+
+    blame_test(run_git_blame, expected_blame_properties)
