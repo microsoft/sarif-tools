@@ -4,7 +4,7 @@ import json
 import jsonschema
 import os
 import tempfile
-from typing import Callable, List
+from typing import Callable, Dict, List
 
 from sarif.operations import blame_op
 from sarif import sarif_file
@@ -112,7 +112,7 @@ def test_blame_no_blame_info():
 
 def blame_test(
     run_git_blame: Callable[[str, str], List[bytes]],
-    expected_blame_properties: dict[str, dict[str, str]],
+    expected_blame_properties: Dict[str, Dict[str, str]],
 ):
     input_sarif_file = sarif_file.SarifFile(
         "SARIF_FILE", SARIF_FILE, mtime=datetime.datetime.now()
