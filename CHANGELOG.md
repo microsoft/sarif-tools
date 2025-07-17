@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - #76 Support in HTML display rules as links, when help Uri provided
 - #82 `trend` and `csv` output csv files have `\r\n` line terminators when generated on Linux machine
+- #97 sarif blame crashes with UnicodeDecodeError when it encounters invalid UTF-8
 
 ## [3.0.4] - 2024-11-15
 
