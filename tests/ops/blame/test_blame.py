@@ -157,6 +157,7 @@ def test_blame_success():
 
     expected_blame_properties = {
         "blame": {
+            "commit": "f9db03438aba52affc5c3fcdb619afa620ad603a",
             "author": "Taylor Developer",
             "author-mail": "<taylor@developer.com>",
             "author-time": "1699272533",
@@ -200,6 +201,7 @@ def test_blame_invalid_utf8():
 
     expected_blame_properties = {
         "blame": {
+            "commit": "f9db03438aba52affc5c3fcdb619afa620ad603a",
             "author": "Taylor Developer",
             "author-mail": "<taylor@developer.com>",
             "author-time": "1699272533",
