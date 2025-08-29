@@ -118,8 +118,10 @@ def _enhance_with_blame(
                 if line_no in blame_info["line_to_commit"]:
                     commit_hash = blame_info["line_to_commit"][line_no]
                     commit = blame_info["commits"][commit_hash]
+                    # Add commit hash to the blame information
+                    commit_with_hash = {"commit": commit_hash, **commit}
                     # Add blame information to the SARIF Property Bag of the result
-                    result.setdefault("properties", {})["blame"] = commit
+                    result.setdefault("properties", {})["blame"] = commit_with_hash
                     blame_info_count += 1
     print(f"Found blame information for {blame_info_count} of {item_count} results")
 

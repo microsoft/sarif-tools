@@ -184,6 +184,7 @@ Blame information is added to the property bag of each `result` object for which
   ...
   "properties": {
     "blame": {
+      "commit": "1234567890abcdef1234567890abcdef12345678",
       "author": "aperson",
       "author-mail": "<aperson@acompany.com>",
       "author-time": "1350899798",
@@ -740,6 +741,7 @@ For commonly used properties the following shortcuts are defined:
 | -------- | -------- |
 | author | properties.blame.author |
 | author-mail | properties.blame.author-mail |
+| commit | properties.blame.commit |
 | committer | properties.blame.committer |
 | committer-mail | properties.blame.committer-mail |
 | location | locations[*].physicalLocation.artifactLocation.uri |
