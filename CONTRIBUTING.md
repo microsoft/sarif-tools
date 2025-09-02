@@ -20,6 +20,7 @@ Pull requests are welcome.
 1. Fork the repository.
 2. Make and test your changes (see Developer Guide below).
 3. Run `poetry run ruff format` and `poetry run black sarif` to format the code.
+   - Alternatively, install pre-commit hooks to run black automatically before each commit (see [Setting up pre-commit hooks](#setting-up-pre-commit-hooks) below).
 4. Run `poetry run pylint sarif` and check for no new errors or warnings.
 5. Raise Pull Request in GitHub.com.
 
@@ -142,3 +143,19 @@ poetry update
 ### Adding resource files to the project
 
 Add the file within the `sarif` directory and it will be installed with the Python source.  For example, `sarif/operations/templates/sarif_summary.html`.
+
+### Setting up pre-commit hooks
+
+This repository uses [pre-commit](https://pre-commit.com/) to automatically run black code formatter before each commit. To set up pre-commit:
+
+1. Ensure pre-commit is installed in your development environment:
+```bash
+poetry install
+```
+
+2. Install the git hooks:
+```bash
+poetry run pre-commit install
+```
+
+Once installed, black will automatically run on the files you've changed when you commit. If the formatter makes any changes, the commit will be aborted, allowing you to stage the formatting changes and try again.
