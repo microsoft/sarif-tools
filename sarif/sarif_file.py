@@ -292,7 +292,7 @@ class SarifRun:
             "Severity": severity,
             "Code": error_id,
             "Description": (
-                message[len(error_id) + 1].strip()
+                message[len(error_id) + 1 :].strip()
                 if message.startswith(error_id) and len(message) > len(error_id) + 1
                 else message
             ),
