@@ -7,7 +7,7 @@ import os
 import sys
 
 from sarif import loader, sarif_file, __version__ as SARIF_TOOLS_PACKAGE_VERSION
-from sarif.filter.general_filter import load_filter_file
+from sarif.filter.general_filter import FilterConfigurationError, load_filter_file
 
 from sarif.operations import (
     blame_op,
@@ -58,8 +58,11 @@ def main():
             )
         args = ARG_PARSER.parse_args()
 
-    exitcode = args.func(args)
-    return exitcode
+    try:
+        return args.func(args)
+    except FilterConfigurationError as error:
+        sys.stderr.write(f"ERROR: {error}\n")
+        return 2
 
 
 def _create_arg_parser():

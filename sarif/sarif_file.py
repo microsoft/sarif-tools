@@ -67,7 +67,7 @@ def _add_filter_stats(accumulator, filter_stats):
         if accumulator:
             accumulator.add(filter_stats)
             return accumulator
-        return copy.copy(filter_stats)
+        return copy.deepcopy(filter_stats)
     return accumulator
 
 
