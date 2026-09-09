@@ -890,7 +890,7 @@ Call `init_path_prefix_stripping(autotrim, path_prefixes)` on a `SarifFileSet`, 
 
 Call `init_general_filter(filter_description, include_filters, exclude_filters)` on a `SarifFileSet`, `SarifFile` or `SarifRun` object to set up filtering.  `filter_description` is a string and the other parameters are lists of inclusion and exclusion rules.  They correspond in an obvious way to the filter file contents described in [Filtering](#filtering) above.
 
-Call `get_filter_stats()` to retrieve the filter stats after reading the results or records from sarif files.  It returns `None` if there is no filter, or otherwise a `sarif_file.FilterStats` object with integer fields `filtered_in_result_count`, `filtered_out_result_count`.  Call `to_string()` on the `FilterStats` object for a readable representation of these statistics, which also includes the filter file name or description (`filter_description` field).
+Call `get_filter_stats()` to retrieve the filter stats after reading the results or records from sarif files.  It returns `None` if there is no filter, or otherwise a `sarif_file.FilterStats` object with integer fields `filtered_in_result_count`, `filtered_out_result_count`.  Call `to_string()` on the `FilterStats` object for a readable representation of these statistics, which also includes the filter file name or description (`filter_description` field). Human-readable filter statistics may also contain advisory configuration warnings; these warnings are not persisted in the JSON statistics representation.
 
 ## Suggested usage in CI pipelines
 

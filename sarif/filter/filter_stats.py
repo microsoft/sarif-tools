@@ -5,7 +5,7 @@ Statistics that record the outcome of a filter.
 import datetime
 
 
-class FilterStats:
+class FilterStats:  # pylint: disable=too-many-instance-attributes
     """
     Statistics that record the outcome of a filter.
     """
@@ -19,6 +19,7 @@ class FilterStats:
         self.filtered_out_result_count = 0
         self.missing_property_count = 0
         self.unconvincing_line_number_count = 0
+        self._path_observations = {}
 
     def reset_counters(self):
         """
@@ -29,6 +30,32 @@ class FilterStats:
         self.filtered_out_result_count = 0
         self.missing_property_count = 0
         self.unconvincing_line_number_count = 0
+        self._path_observations = {}
+
+    def record_path_observation(
+        self, section, property_path, evaluated_result_count, matched
+    ):
+        """Record aggregate property-path presence without changing filter counters."""
+        key = (section, property_path)
+        observation = self._path_observations.setdefault(
+            key, {"evaluated_result_count": 0, "matched": False}
+        )
+        observation["evaluated_result_count"] += evaluated_result_count
+        observation["matched"] = observation["matched"] or matched
+
+    @property
+    def warnings(self):
+        """Return advisory diagnostics derived from conclusive path observations."""
+        return [
+            (
+                f"Filter path '{property_path}' in {section} matched no values in "
+                f"{observation['evaluated_result_count']} evaluated results. The path "
+                "is valid JSONPath but may be misspelled or not applicable to this "
+                "input. Filtering behavior was unchanged."
+            )
+            for (section, property_path), observation in self._path_observations.items()
+            if observation["evaluated_result_count"] and not observation["matched"]
+        ]
 
     def add(self, other_filter_stats):
         """
@@ -47,6 +74,14 @@ class FilterStats:
             self.unconvincing_line_number_count += (
                 other_filter_stats.unconvincing_line_number_count
             )
+            for path_key, observation in other_filter_stats._path_observations.items():  # pylint: disable=protected-access
+                section, property_path = path_key
+                self.record_path_observation(
+                    section,
+                    property_path,
+                    observation["evaluated_result_count"],
+                    observation["matched"],
+                )
 
     def __str__(self):
         """
@@ -76,6 +111,8 @@ class FilterStats:
                 f", {self.missing_property_count} included by default "
                 "for lacking data to filter"
             )
+        for warning in self.warnings:
+            ret += f"\nWarning: {warning}"
 
         return ret
 
