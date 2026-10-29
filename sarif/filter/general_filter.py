@@ -4,11 +4,13 @@ SARIF file filtering functionality.
 
 import os
 import re
+from collections.abc import Mapping
 from typing import Optional, List
 
 import copy
 import jsonpath_ng.ext
 import yaml
+from jsonpath_ng.exceptions import JSONPathError
 
 from sarif import sarif_file_utils
 from sarif.filter.filter_stats import FilterStats, load_filter_stats_from_json
@@ -36,13 +38,18 @@ DEFAULT_CONFIGURATION = {
 }
 
 
+class FilterConfigurationError(ValueError):
+    """Raised when a filter configuration cannot be compiled."""
+
+
 def _get_filter_function(filter_spec):
     """Return a filter function for the given specification."""
     if filter_spec:
         filter_len = len(filter_spec)
         if filter_len > 2 and filter_spec.startswith("/") and filter_spec.endswith("/"):
             regex = filter_spec[1:-1]
-            return lambda value: re.search(regex, value, re.IGNORECASE)
+            compiled_regex = re.compile(regex, re.IGNORECASE)
+            return compiled_regex.search
         substring = filter_spec
         # substring can be empty, in this case "in" returns true
         # and only existence of the property checked.
@@ -73,17 +80,36 @@ class PropertyFilter:
     Class that represents a filter term ready for efficient use.
     """
 
-    def __init__(self, prop_path, prop_value_spec, global_configuration):
+    def __init__(
+        self,
+        prop_path,
+        prop_value_spec,
+        global_configuration,
+        configuration_location="filter",
+    ):
         """
         Compile a filter property.  See README for the filter spec format.
 
         :param prop_path: JsonPath or preset.
         :param prop_value_spec: Value spec.
         :param global_configuration: Global configuration of the filter.
+        :param configuration_location: Location used for contextual configuration errors.
         """
+        if not isinstance(prop_path, str):
+            raise FilterConfigurationError(
+                f"Invalid filter configuration at {configuration_location}: "
+                "property path must be a string"
+            )
+
         self.prop_path = prop_path
         resolved_prop_path = FILTER_SHORTCUTS.get(prop_path, prop_path)
-        self.jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
+        try:
+            self.jsonpath_expr = jsonpath_ng.ext.parse(resolved_prop_path)
+        except JSONPathError as error:
+            raise FilterConfigurationError(
+                f"Invalid filter configuration at {configuration_location} for path "
+                f"'{prop_path}': invalid JSONPath"
+            ) from error
 
         # if prop_value_spec is a dict, update filter configuration from it
         if isinstance(prop_value_spec, dict):
@@ -95,8 +121,19 @@ class PropertyFilter:
             prop_value_spec = prop_value_spec.get("value", "")
         else:
             self.filter_configuration = global_configuration
-        value_spec = _convert_glob_to_regex(resolved_prop_path, prop_value_spec)
-        self.filter_function = _get_filter_function(value_spec)
+        try:
+            value_spec = _convert_glob_to_regex(resolved_prop_path, prop_value_spec)
+            self.filter_function = _get_filter_function(value_spec)
+        except re.error as error:
+            raise FilterConfigurationError(
+                f"Invalid regular expression in {configuration_location}.{prop_path}: "
+                f"{error}"
+            ) from error
+        except (AttributeError, TypeError) as error:
+            raise FilterConfigurationError(
+                f"Invalid filter configuration at {configuration_location} for path "
+                f"'{prop_path}': unsupported property value"
+            ) from error
 
 
 class MultiPropertyFilter:
@@ -106,28 +143,74 @@ class MultiPropertyFilter:
     These are combined using AND to filter results.
     """
 
-    def __init__(self, filter_spec: List[dict], global_filter_configuration: dict):
+    def __init__(
+        self,
+        filter_spec: List[dict],
+        global_filter_configuration: dict,
+        configuration_location="filter",
+    ):
         """
         Initialise from a filter spec.
 
         See README for filter spec format.  It's a list of property paths and values to be
         combined with AND to form a filter.
         """
+        try:
+            filter_items = filter_spec.items()
+        except AttributeError as error:
+            raise FilterConfigurationError(
+                f"Invalid filter configuration at {configuration_location}: "
+                "expected a mapping"
+            ) from error
+
         self.filter_spec = filter_spec
         self.and_terms = [
-            PropertyFilter(prop_path, prop_value_spec, global_filter_configuration)
-            for prop_path, prop_value_spec in filter_spec.items()
+            PropertyFilter(
+                prop_path,
+                prop_value_spec,
+                global_filter_configuration,
+                configuration_location,
+            )
+            for prop_path, prop_value_spec in filter_items
         ]
 
 
 def _compile_filters(
-    filters: List[dict], global_filter_configuration: dict
+    filters: List[dict], global_filter_configuration: dict, section="filter"
 ) -> List[MultiPropertyFilter]:
-    return [
-        MultiPropertyFilter(filter_spec, global_filter_configuration)
-        for filter_spec in filters
-        if filter_spec
-    ]
+    try:
+        indexed_filters = enumerate(filters)
+    except TypeError as error:
+        raise FilterConfigurationError(
+            f"Invalid filter configuration at {section}: expected an iterable of rules"
+        ) from error
+
+    compiled_filters = []
+    for filter_index, filter_spec in indexed_filters:
+        configuration_location = f"{section}[{filter_index}]"
+        if not isinstance(filter_spec, Mapping) or not filter_spec:
+            raise FilterConfigurationError(
+                f"Invalid filter configuration: {configuration_location} "
+                "must be a non-empty mapping"
+            )
+        compiled_filters.append(
+            MultiPropertyFilter(
+                filter_spec,
+                global_filter_configuration,
+                configuration_location,
+            )
+        )
+    return compiled_filters
+
+
+def _filters_are_configured(filters, section):
+    try:
+        return len(filters) > 0
+    except TypeError as error:
+        raise FilterConfigurationError(
+            f"Invalid filter configuration at {section}: "
+            "expected a sized iterable of rules"
+        ) from error
 
 
 class GeneralFilter:
@@ -150,11 +233,25 @@ class GeneralFilter:
         Initialise the filter with the given filter patterns.
         """
         self.filter_stats = FilterStats(filter_description)
-        self.configuration.update(configuration)
-        self.include_filters = _compile_filters(include_filters, self.configuration)
-        self.apply_inclusion_filter = len(include_filters) > 0
-        self.exclude_filters = _compile_filters(exclude_filters, self.configuration)
-        self.apply_exclusion_filter = len(exclude_filters) > 0
+        try:
+            self.configuration.update(configuration)
+        except (TypeError, ValueError) as error:
+            raise FilterConfigurationError(
+                "Invalid filter configuration at configuration: expected mapping-compatible "
+                "key/value entries"
+            ) from error
+        self.include_filters = _compile_filters(
+            include_filters, self.configuration, "include"
+        )
+        self.apply_inclusion_filter = _filters_are_configured(
+            include_filters, "include"
+        )
+        self.exclude_filters = _compile_filters(
+            exclude_filters, self.configuration, "exclude"
+        )
+        self.apply_exclusion_filter = _filters_are_configured(
+            exclude_filters, "exclude"
+        )
 
     def rehydrate_filter_stats(self, dehydrated_filter_stats, filter_datetime):
         """
@@ -170,6 +267,40 @@ class GeneralFilter:
     def _zero_counts(self):
         if self.filter_stats:
             self.filter_stats.reset_counters()
+
+    def _record_path_observations(  # pylint: disable=too-many-nested-blocks
+        self, results: List[dict]
+    ):
+        """Observe configured path presence independently from filter selection."""
+        if not results:
+            return
+
+        for section, filters in (
+            ("include", self.include_filters),
+            ("exclude", self.exclude_filters),
+        ):
+            observed_paths = set()
+            for multi_property_filter in filters:
+                for property_filter in multi_property_filter.and_terms:
+                    if property_filter.prop_path in observed_paths:
+                        continue
+                    observed_paths.add(property_filter.prop_path)
+
+                    matched = False
+                    conclusive = True
+                    for result in results:
+                        # A diagnostic-only scan must not affect filtering.
+                        try:
+                            if property_filter.jsonpath_expr.find(result):
+                                matched = True
+                                break
+                        except Exception:  # pylint: disable=broad-exception-caught
+                            conclusive = False
+                            break
+                    if conclusive:
+                        self.filter_stats.record_path_observation(
+                            section, property_filter.prop_path, len(results), matched
+                        )
 
     def _filter_append(self, filtered_results: List[dict], result: dict):
         # Remove any existing filter log on the result
@@ -275,6 +406,7 @@ class GeneralFilter:
         """
         if self.apply_inclusion_filter or self.apply_exclusion_filter:
             self._zero_counts()
+            self._record_path_observations(results)
             ret = []
             for result in results:
                 self._filter_append(ret, result)
@@ -297,10 +429,16 @@ def load_filter_file(file_path):
         file_name = os.path.basename(file_path)
         with open(file_path, encoding="utf-8") as file_in:
             yaml_content = yaml.safe_load(file_in)
+            if not isinstance(yaml_content, dict):
+                raise FilterConfigurationError(
+                    "Invalid filter configuration at root: expected a mapping"
+                )
             filter_description = yaml_content.get("description", file_name)
             configuration = yaml_content.get("configuration", {})
             include_filters = yaml_content.get("include", {})
             exclude_filters = yaml_content.get("exclude", {})
     except yaml.YAMLError as error:
-        raise IOError(f"Cannot read filter file {file_path}") from error
+        raise FilterConfigurationError(
+            f"Invalid filter configuration in {file_path}: malformed YAML"
+        ) from error
     return filter_description, configuration, include_filters, exclude_filters
