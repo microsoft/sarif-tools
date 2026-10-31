@@ -47,11 +47,40 @@ def generate(input_files: SarifFileSet, output: str, output_multiple_files: bool
         print(f"  Results are filtered by {filter_stats}")
 
 
+def _fingerprint(record, occurrence):
+    """
+    Compute a stable identity for a diagnostic as a Code Climate fingerprint.
+
+    The identity is (Tool, Code, Description, Location).  The absolute line number is
+    deliberately excluded, so unrelated edits that shift a diagnostic up or down do
+    not change its fingerprint.  `occurrence` counts earlier diagnostics with the same
+    identity in the list being written, which keeps indistinguishable duplicates
+    distinct instead of collapsing them.  Because the index is positional, inserted or
+    deleted indistinguishable occurrences in the same group cannot be tracked precisely.
+
+    The identity is serialised as canonical JSON rather than by concatenation, so
+    descriptions or paths containing separators, quotes or non-ASCII text cannot
+    alias across field boundaries.
+    """
+    identity = {
+        "Tool": record.get("Tool") or "",
+        "Code": record["Code"],
+        "Description": record["Description"],
+        "Location": record["Location"],
+        "Occurrence": occurrence,
+    }
+    canonical = json.dumps(
+        identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    return hashlib.md5(canonical.encode("utf-8")).hexdigest()
+
+
 def _write_to_json(list_of_errors, output_file):
     """
     Write out the errors to a JSON file according to Code Climate specification.
     """
     content = []
+    occurrences = {}
     for record in list_of_errors:
         severity = _SEVERITIES.get(record.get("Severity", "warning"), "minor")
 
@@ -62,9 +91,15 @@ def _write_to_json(list_of_errors, output_file):
         path = record["Location"]
         line = record["Line"]
 
-        fingerprint = hashlib.md5(
-            f"{description} {path} ${line}`]".encode()
-        ).hexdigest()
+        identity = (
+            record.get("Tool") or "",
+            rule,
+            description,
+            path,
+        )
+        occurrence = occurrences.get(identity, 0)
+        occurrences[identity] = occurrence + 1
+        fingerprint = _fingerprint(record, occurrence)
 
         # "categories" property is not used in GitLab but marked as "required" in Code Climate spec.
         # There is no easy way to determine a category so the fixed value is set.
