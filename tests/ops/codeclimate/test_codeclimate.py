@@ -45,7 +45,10 @@ EXPECTED_OUTPUT_JSON = [
             "lines": {"begin": 24},
         },
         "severity": "major",
-        "fingerprint": "e972b812ed32bf29ee306141244050b9",
+        # Fingerprint scheme changed once for issue #104 (identity no longer includes
+        # the absolute line, and adds a per-identity occurrence index). This literal
+        # is the one-time migrated value; existing consumers see one fingerprint change.
+        "fingerprint": "66eff5d58a2b88a25c2d92900903ff18",
     }
 ]
 
