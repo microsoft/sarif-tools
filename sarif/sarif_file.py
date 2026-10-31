@@ -79,6 +79,27 @@ def _get_author_mail_from_blame_info(blame_info):
     )
 
 
+def _resolve_rule_identity(result, run) -> Optional[str]:
+    """
+    Return the rule identity referred to by a result, if it has one.
+
+    SARIF 2.1.0 permits a result without `ruleId` (the result object schema requires
+    `message` only), so fall back to the rule descriptor, resolved the same way
+    severity resolves it, and then to a directly supplied `rule.id` reference.
+    Returns None if no identity can be found, in which case the caller must not
+    present a fabricated rule id.
+    """
+    rule_id = result.get("ruleId")
+    if rule_id:
+        return rule_id
+    rule, _rule_index = sarif_file_utils.read_result_rule(result, run)
+    if rule is not None:
+        rule_id = rule.get("id")
+    if not rule_id:
+        rule_id = (result.get("rule") or {}).get("id")
+    return rule_id
+
+
 class SarifRun:
     """
     Class to hold a run object from a SARIF file (an entry in the top-level "runs" list
@@ -242,8 +263,10 @@ class SarifRun:
         if blame information is present.  See definition of result object here:
         https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html#_Toc34317638
         """
-        error_id = result["ruleId"]
         tool_name = self.get_tool_name()
+        # A result may legally omit ruleId, so show the actual tool name rather than
+        # inventing a rule id when no rule identity can be resolved.
+        error_id = _resolve_rule_identity(result, self.run_data) or tool_name
         (file_path, line_number) = sarif_file_utils.read_result_location(result)
         if not file_path:
             # Result having non-empty location is only a "SHOULD" in the SARIF spec 3.27.12.
@@ -293,7 +316,11 @@ class SarifRun:
             "Code": error_id,
             "Description": (
                 message[len(error_id) + 1].strip()
-                if message.startswith(error_id) and len(message) > len(error_id) + 1
+                # Legacy prefix stripping applies only to an explicit result.ruleId
+                # (left as-is, see #115); results without one keep their message.
+                if result.get("ruleId")
+                and message.startswith(error_id)
+                and len(message) > len(error_id) + 1
                 else message
             ),
         }
